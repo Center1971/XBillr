@@ -1,0 +1,29 @@
+# Perl
+*.pm~
+*.bak
+*.swp
+*~
+blib/
+_build/
+Build/
+Build.bat
+MYMETA.json
+MYMETA.yml
+
+# Logs
+*.log
+log/
+
+# Local config
+local.conf
+*.local.conf
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+

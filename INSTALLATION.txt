@@ -1,0 +1,55 @@
+XBillr - Installationsanleitung
+================================
+
+Dieses ZIP-Archiv enthält die vollständige XBillr Rechnungssoftware.
+
+INHALT:
+-------
+- backend/          Perl/Mojolicious Backend
+- frontend/         React Frontend (falls vorhanden)
+- README.md         Hauptdokumentation
+- ARCHITECTURE.md   Systemarchitektur
+- backend/README.md Backend-Dokumentation
+- backend/SECURITY.md Sicherheitsrichtlinien
+
+BACKEND INSTALLATION:
+--------------------
+1. Perl 5.30+ und cpanminus installieren:
+   sudo apt install perl cpanminus
+
+2. Abhängigkeiten installieren:
+   cd backend
+   cpanm --installdeps .
+
+3. MariaDB einrichten:
+   mysql -u root -p < sql/schema.sql
+
+4. Umgebungsvariablen setzen:
+   export DB_DSN="dbi:MariaDB:database=xbillr;host=localhost;port=3307"
+   export DB_USER="xbillr_user"
+   export DB_PASSWORD="xbillr_pass"
+   export ALLOWED_ORIGINS="http://localhost:3000"
+
+5. Backend starten:
+   perl app.pl daemon
+
+Das Backend läuft auf http://localhost:3001
+
+FRONTEND INSTALLATION (falls vorhanden):
+-----------------------------------------
+1. Node.js 18+ installieren
+2. cd frontend
+3. npm install
+4. npm start
+
+Das Frontend läuft auf http://localhost:3000
+
+SICHERHEIT:
+-----------
+Siehe backend/SECURITY.md für Details zu den implementierten
+Sicherheitsmaßnahmen.
+
+SUPPORT:
+--------
+Bei Fragen oder Problemen siehe die README.md Dateien.
+

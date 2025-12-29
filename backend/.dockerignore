@@ -1,0 +1,42 @@
+# Logs
+*.log
+log/
+*.log.*
+
+# Build-Artefakte
+target/
+_build/
+Build/
+*.class
+
+# Dependencies (werden im Container installiert)
+local/
+perl5/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# Git
+.git/
+.gitignore
+
+# Temporäre Dateien
+*.swp
+*.bak
+*.tmp
+
+# Test-Dateien
+t/
+test/
+*.t
+
+# Dokumentation (optional, kann auch eingeschlossen werden)
+# *.md
+

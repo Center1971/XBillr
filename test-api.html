@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBillr API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get { background: #28a745; color: white; }
+        .post { background: #007bff; color: white; }
+        .put { background: #ffc107; color: black; }
+        .delete { background: #dc3545; color: white; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .ok { background: #28a745; color: white; }
+        .error { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XBillr API Test</h1>
+        <p>Version 0.2</p>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/health</strong>
+            <button onclick="testHealth()">Testen</button>
+            <div id="health-result" class="result" style="display:none;"></div>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/customers</strong>
+            <button onclick="testCustomers()">Testen</button>
+            <div id="customers-result" class="result" style="display:none;"></div>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/invoices</strong>
+            <button onclick="testInvoices()">Testen</button>
+            <div id="invoices-result" class="result" style="display:none;"></div>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/time-entries/week/2025/1</strong>
+            <button onclick="testTimeEntries()">Testen</button>
+            <div id="timeentries-result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Lade...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.innerHTML += `<span class="status ${response.ok ? 'ok' : 'error'}">${response.status}</span>`;
+            } catch (error) {
+                resultDiv.textContent = `Fehler: ${error.message}`;
+                resultDiv.innerHTML += '<span class="status error">Fehler</span>';
+            }
+        }
+        
+        async function testCustomers() {
+            const resultDiv = document.getElementById('customers-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Lade...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/customers`);
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.innerHTML += `<span class="status ${response.ok ? 'ok' : 'error'}">${response.status}</span>`;
+            } catch (error) {
+                resultDiv.textContent = `Fehler: ${error.message}`;
+                resultDiv.innerHTML += '<span class="status error">Fehler</span>';
+            }
+        }
+        
+        async function testInvoices() {
+            const resultDiv = document.getElementById('invoices-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Lade...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/invoices`);
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.innerHTML += `<span class="status ${response.ok ? 'ok' : 'error'}">${response.status}</span>`;
+            } catch (error) {
+                resultDiv.textContent = `Fehler: ${error.message}`;
+                resultDiv.innerHTML += '<span class="status error">Fehler</span>';
+            }
+        }
+        
+        async function testTimeEntries() {
+            const resultDiv = document.getElementById('timeentries-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Lade...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/time-entries/week/2025/1`);
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.innerHTML += `<span class="status ${response.ok ? 'ok' : 'error'}">${response.status}</span>`;
+            } catch (error) {
+                resultDiv.textContent = `Fehler: ${error.message}`;
+                resultDiv.innerHTML += '<span class="status error">Fehler</span>';
+            }
+        }
+        
+        // Auto-test Health beim Laden
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html>
+

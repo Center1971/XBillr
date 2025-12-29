@@ -1,0 +1,19 @@
+requires 'Mojolicious', '>= 9.0';
+requires 'DBIx::Class', '>= 0.082840';
+requires 'DBIx::Class::Schema::Loader', '>= 0.07049';
+requires 'DBD::MariaDB', '>= 1.22';
+requires 'DateTime', '>= 1.59';
+requires 'DateTime::Format::MySQL', '>= 0.07';
+requires 'JSON', '>= 4.05';
+requires 'UUID::Tiny', '>= 1.04';
+requires 'Math::BigFloat', '>= 1.0';
+requires 'PDF::API2', '>= 2.040';
+requires 'XML::LibXML', '>= 2.0206';
+# Mojolicious::Plugin::CORS ist optional, verwenden wir stattdessen manuelles CORS
+# requires 'Mojolicious::Plugin::CORS', '>= 1.0';
+
+on 'test' => sub {
+    requires 'Test::More', '>= 1.302190';
+    requires 'Test::Mojo', '>= 7.0';
+};
+
