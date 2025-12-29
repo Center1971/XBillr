@@ -9,6 +9,11 @@ requires 'UUID::Tiny', '>= 1.04';
 requires 'Math::BigFloat', '>= 1.0';
 requires 'PDF::API2', '>= 2.040';
 requires 'XML::LibXML', '>= 2.0206';
+requires 'Crypt::PBKDF2', '>= 0.161520';
+requires 'Email::Sender', '>= 1.300035';
+requires 'Email::Simple', '>= 2.218';
+requires 'Email::Simple::Creator', '>= 1.424';
+requires 'MIME::Base64', '>= 3.16';
 # Mojolicious::Plugin::CORS ist optional, verwenden wir stattdessen manuelles CORS
 # requires 'Mojolicious::Plugin::CORS', '>= 1.0';
 

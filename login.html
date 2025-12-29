@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBillr - Anmeldung</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header h1 {
+            color: #1976d2;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .login-button:hover {
+            background: #1565c0;
+        }
+        
+        .login-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>XBillr</h1>
+            <p>Rechnungsverwaltung</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Benutzername oder E-Mail</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Passwort</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="login-button" id="loginButton">
+                Anmelden
+            </button>
+        </form>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        
+        // Prüfe ob bereits eingeloggt
+        const sessionToken = localStorage.getItem('sessionToken');
+        if (sessionToken) {
+            // Validiere Session
+            fetch(`${API_BASE}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = 'index.html';
+                } else {
+                    localStorage.removeItem('sessionToken');
+                    localStorage.removeItem('user');
+                }
+            })
+            .catch(() => {
+                localStorage.removeItem('sessionToken');
+                localStorage.removeItem('user');
+            });
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const loginButton = document.getElementById('loginButton');
+            
+            // Verstecke Fehlermeldung
+            errorMessage.classList.remove('show');
+            errorMessage.textContent = '';
+            
+            // Deaktiviere Button
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="loading"></span> Anmelden...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Anmeldung fehlgeschlagen' }));
+                    errorMessage.textContent = errorData.error || 'Anmeldung fehlgeschlagen';
+                    errorMessage.classList.add('show');
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Anmelden';
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.success && data.session_token) {
+                    // Speichere Session-Token und Benutzerdaten
+                    localStorage.setItem('sessionToken', data.session_token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Weiterleitung zur Hauptseite
+                    window.location.href = 'index.html';
+                } else {
+                    // Zeige Fehlermeldung
+                    errorMessage.textContent = data.error || 'Anmeldung fehlgeschlagen';
+                    errorMessage.classList.add('show');
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Anmelden';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMessage.textContent = 'Verbindungsfehler. Bitte versuchen Sie es erneut.';
+                errorMessage.classList.add('show');
+                loginButton.disabled = false;
+                loginButton.textContent = 'Anmelden';
+            }
+        });
+    </script>
+</body>
+</html>
+

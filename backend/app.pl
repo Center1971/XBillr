@@ -14,6 +14,10 @@ use UUID::Tiny ':std';
 
 # Controller explizit laden
 use XBillr::Controller::Health;
+use XBillr::Controller::Auth;
+use XBillr::Controller::Users;
+use XBillr::Controller::Roles;
+use XBillr::Controller::Permissions;
 
 # Versionsinformation
 app->defaults(version => $XBillr::Version::VERSION);
@@ -23,6 +27,9 @@ plugin 'Config';
 
 # Sicherheits-Logging
 plugin 'XBillr::Middleware::SecurityLogging';
+
+# Authentifizierung
+plugin 'XBillr::Middleware::Auth';
 
 # Sicherheits-Plugin
 plugin 'SecurityHeaders' => {
@@ -179,7 +186,9 @@ hook before_dispatch => sub {
 };
 
 # Sicherheits-Middleware (Rate Limiting - überspringt OPTIONS und Root-Route)
-under sub {
+# WICHTIG: Dieses under blockiert nur für Routen außerhalb von $api
+# API-Routen werden separat behandelt
+my $rate_limit = app->routes->under(sub {
     my $c = shift;
     
     # OPTIONS-Requests nicht rate-limiten
@@ -190,6 +199,9 @@ under sub {
     if ($path eq '/' || $path eq '') {
         return 1;
     }
+    
+    # API-Routen nicht hier rate-limiten (werden separat behandelt)
+    return 1 if $path =~ m{^/api};
     
     # Rate Limiting für alle anderen Routen
     my $security = $c->app->security;
@@ -205,7 +217,7 @@ under sub {
     }
     
     return 1;
-};
+});
 
 # Root Route - API Info (nach dem under-Middleware, aber wird durchgelassen)
 get '/' => sub {
@@ -245,6 +257,202 @@ app->hook(after_dispatch => sub {
 
 # API Routes
 my $api = app->routes->under('/api');
+
+# Authentifizierung (öffentlich)
+$api->post('/auth/login' => sub {
+    my $c = shift;
+    my $controller = XBillr::Controller::Auth->new;
+    $controller->{app} = $c->app;
+    $controller->{stash} = $c->stash;
+    $controller->{tx} = $c->tx;
+    $controller->{req} = $c->req;
+    $controller->{res} = $c->res;
+    $controller->login($c);
+});
+$api->post('/auth/logout' => sub {
+    my $c = shift;
+    my $controller = XBillr::Controller::Auth->new;
+    $controller->{app} = $c->app;
+    $controller->{stash} = $c->stash;
+    $controller->{tx} = $c->tx;
+    $controller->{req} = $c->req;
+    $controller->{res} = $c->res;
+    $controller->logout($c);
+});
+
+# Geschützte Routen - erfordern Authentifizierung
+# Verwende einen direkten Callback statt under, um Header-Zugriff zu gewährleisten
+my $protected = $api->under('/')->to(cb => sub {
+    my $c = shift;
+    
+    # Lese Header direkt hier und übergebe an require_auth
+    my $auth_header = $c->req->headers->header('Authorization') || '';
+    unless ($auth_header) {
+        $auth_header = $c->req->headers->header('authorization') || '';
+    }
+    
+    # Wenn immer noch leer, prüfe to_hash
+    unless ($auth_header) {
+        my $headers = $c->req->headers->to_hash;
+        foreach my $key (keys %$headers) {
+            if (lc($key) eq 'authorization') {
+                my $value = $headers->{$key};
+                $auth_header = ref($value) eq 'ARRAY' ? $value->[0] : $value;
+                last;
+            }
+        }
+    }
+    
+    $c->app->log->debug("Protected route: Authorization header = " . ($auth_header ? substr($auth_header, 0, 30) : "empty"));
+    
+    # Extrahiere Token
+    my $token = $auth_header;
+    $token =~ s/^Bearer\s+//i;
+    
+    unless ($token) {
+        $c->render(json => { error => 'Authentifizierung erforderlich' }, status => 401);
+        return 0;
+    }
+    
+    # Validiere Session
+    my $schema = $c->app->schema;
+    my $auth_service = XBillr::Service::AuthService->new(schema => $schema);
+    my $user = $auth_service->validate_session($token);
+    
+    $c->app->log->debug("Protected route: Session validation result = " . ($user ? $user->username : "undef"));
+    
+    unless ($user) {
+        $c->render(json => { error => 'Ungültige oder abgelaufene Session' }, status => 401);
+        return 0;
+    }
+    
+    unless ($user->is_active) {
+        $c->render(json => { error => 'Benutzer ist deaktiviert' }, status => 403);
+        return 0;
+    }
+    
+    $c->stash('current_user' => $user);
+    return 1;
+});
+
+# Aktueller Benutzer
+$protected->get('/auth/me')->to(cb => sub {
+    my $c = shift;
+    my $controller = XBillr::Controller::Auth->new;
+    $controller->{app} = $c->app;
+    $controller->{stash} = $c->stash;
+    $controller->{tx} = $c->tx;
+    $controller->{req} = $c->req;
+    $controller->{res} = $c->res;
+    $controller->me($c);
+});
+
+# Benutzerverwaltung
+my $users = $protected->under('/users')->to(cb => sub {
+    my $c = shift;
+    $c->app->log->debug("Users route: checking permission");
+    my $user = $c->stash('current_user');
+    unless ($user) {
+        $c->render(json => { error => 'Authentifizierung erforderlich' }, status => 401);
+        return 0;
+    }
+    
+    my $schema = $c->app->schema;
+    my $auth_service = XBillr::Service::AuthService->new(schema => $schema);
+    
+    unless ($auth_service->has_permission($user, 'users', 'view')) {
+        $c->app->log->debug("Users route: permission denied for " . $user->username);
+        $c->render(json => { error => 'Keine Berechtigung für diese Aktion' }, status => 403);
+        return 0;
+    }
+    
+    $c->app->log->debug("Users route: permission granted");
+    return 1;
+});
+$users->get('')->to(cb => sub {
+    my $c = shift;
+    $c->app->log->debug("Users route called");
+    eval {
+        my $schema = $c->app->schema;
+        my $users = $schema->resultset('User')->search({}, {
+            order_by => 'created_at DESC',
+        });
+        
+        my @result = ();
+        while (my $user = $users->next) {
+            my @roles = ();
+            my $user_roles = $schema->resultset('UserRole')->search({
+                user_id => $user->id,
+            });
+            while (my $ur = $user_roles->next) {
+                push @roles, {
+                    id => $ur->role->id,
+                    name => $ur->role->name,
+                };
+            }
+            
+            push @result, {
+                id => $user->id,
+                username => $user->username,
+                email => $user->email,
+                firstName => $user->first_name,
+                lastName => $user->last_name,
+                isActive => $user->is_active ? 1 : 0,
+                isEmailVerified => $user->is_email_verified ? 1 : 0,
+                lastLogin => $user->last_login,
+                roles => \@roles,
+                createdAt => $user->created_at,
+            };
+        }
+        
+        $c->render(json => \@result, status => 200);
+    } or do {
+        my $error = $@ || 'Unbekannter Fehler';
+        $c->app->log->error("Users list error: $error");
+        $c->render(json => { error => 'Fehler beim Laden der Benutzer' }, status => 500);
+    };
+});
+$users->post('')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'users', 'create') ? 1 : 0;
+})->to('XBillr::Controller::Users#create');
+$users->put('/:id')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'users', 'update') ? 1 : 0;
+})->to('XBillr::Controller::Users#update');
+$users->delete('/:id')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'users', 'delete') ? 1 : 0;
+})->to('XBillr::Controller::Users#delete');
+$users->post('/:id/send-credentials')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'users', 'create') ? 1 : 0;
+})->to('XBillr::Controller::Users#send_credentials');
+
+# Rollenverwaltung
+my $roles = $protected->under('/roles')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'roles', 'view');
+});
+$roles->get('')->to('XBillr::Controller::Roles#list');
+$roles->post('')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'roles', 'create') ? 1 : 0;
+})->to('XBillr::Controller::Roles#create');
+$roles->put('/:id')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'roles', 'update') ? 1 : 0;
+})->to('XBillr::Controller::Roles#update');
+$roles->delete('/:id')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'roles', 'delete') ? 1 : 0;
+})->to('XBillr::Controller::Roles#delete');
+
+# Rechte
+$protected->get('/permissions')->to(cb => sub {
+    my $c = shift;
+    return $c->app->require_permission($c, 'roles', 'view') ? 1 : 0;
+})->to('XBillr::Controller::Permissions#list');
 
 # Health Check - verwende Controller direkt als Callback
 $api->get('/health' => sub {

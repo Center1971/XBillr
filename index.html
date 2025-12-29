@@ -47,7 +47,8 @@
                     'time-entries': 'Zeiteinträge',
                     'invoices': 'Rechnungen',
                     'open-posts': 'Offene Posten',
-                    'archive': 'Archiv'
+                    'archive': 'Archiv',
+                    'users': 'Benutzerverwaltung'
                 };
                 const pageTitle = document.getElementById('page-title');
                 if (pageTitle) {
@@ -77,6 +78,8 @@
                     loadArchive();
                 } else if (typeof loadOpenPosts === 'function' && tabName === 'open-posts') {
                     loadOpenPosts();
+                } else if (typeof loadUsers === 'function' && tabName === 'users') {
+                    loadUsers();
                 }
                 
                 console.log('>>> showTab abgeschlossen für:', tabName);
@@ -1154,6 +1157,14 @@
                 <span class="material-icons">archive</span>
                 <span>Archiv</span>
             </div>
+            <div class="menu-item" data-tab="users" onclick="showTab('users')" style="cursor: pointer;">
+                <span class="material-icons">people</span>
+                <span>Benutzerverwaltung</span>
+            </div>
+            <div class="menu-item" onclick="logout()" style="cursor: pointer; margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                <span class="material-icons">logout</span>
+                <span>Abmelden</span>
+            </div>
         </div>
         <div style="padding: 16px; border-top: 1px solid var(--border-color);">
             <div style="text-align: center; color: var(--text-secondary); font-size: 0.75em;">
@@ -1714,6 +1725,12 @@
                 </div>
             </div>
             
+            <div id="users" class="tab-content">
+                <div id="users-content">
+                    <div class="loading">Lade Benutzer...</div>
+                </div>
+            </div>
+            
             <div id="supplier" class="tab-content">
                 <div id="supplier-content">
                     <div class="loading">Lade Rechnungssteller...</div>
@@ -1828,6 +1845,78 @@
     
     <script>
         const API_BASE = 'http://localhost:3001/api';
+        
+        // Authentifizierung prüfen
+        (function() {
+            const sessionToken = localStorage.getItem('sessionToken');
+            if (!sessionToken) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Validiere Session
+            fetch(`${API_BASE}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.log('Session validation failed, redirecting to login');
+                    localStorage.removeItem('sessionToken');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                return response.json();
+            })
+            .then(user => {
+                if (user) {
+                    localStorage.setItem('user', JSON.stringify(user));
+                    // Zeige Benutzerinfo in der Sidebar
+                    const userInfo = document.getElementById('user-info');
+                    if (userInfo) {
+                        userInfo.textContent = user.username;
+                    }
+                } else {
+                    // Wenn user null ist, wurde bereits weitergeleitet
+                    return;
+                }
+            })
+            .catch(error => {
+                console.error('Session validation error:', error);
+                localStorage.removeItem('sessionToken');
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
+            });
+        })();
+        
+        // Logout-Funktion
+        function logout() {
+            const sessionToken = localStorage.getItem('sessionToken');
+            if (sessionToken) {
+                fetch(`${API_BASE}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${sessionToken}`
+                    }
+                }).catch(() => {});
+            }
+            localStorage.removeItem('sessionToken');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+        
+        // Helper-Funktion für authentifizierte Requests
+        function authenticatedFetch(url, options = {}) {
+            const sessionToken = localStorage.getItem('sessionToken');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`,
+                ...options.headers
+            };
+            return fetch(url, { ...options, headers });
+        }
         
         // showTab ist bereits im <head> definiert, hier nur nochmal sicherstellen
         if (typeof window.showTab === 'undefined') {
@@ -4718,6 +4807,171 @@
         window.downloadArchivedTimesheet = downloadArchivedTimesheet;
         window.unarchiveTimesheet = unarchiveTimesheet;
         window.deleteTimesheet = deleteTimesheet;
+        
+        // Benutzerverwaltung
+        let allUsers = [];
+        let allRoles = [];
+        let allPermissions = [];
+        
+        async function loadUsers() {
+            const content = document.getElementById('users-content');
+            if (!content) return;
+            
+            content.innerHTML = '<div class="loading">Lade Benutzer...</div>';
+            
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/users`);
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        content.innerHTML = '<div class="error">Sie haben keine Berechtigung für die Benutzerverwaltung.</div>';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                allUsers = await response.json();
+                renderUsersTable();
+            } catch (error) {
+                console.error('Fehler beim Laden der Benutzer:', error);
+                content.innerHTML = '<div class="error">Benutzer konnten nicht geladen werden.</div>';
+            }
+        }
+        
+        async function loadRoles() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/roles`);
+                if (response.ok) {
+                    allRoles = await response.json();
+                }
+            } catch (error) {
+                console.error('Fehler beim Laden der Rollen:', error);
+            }
+        }
+        
+        async function loadPermissions() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/permissions`);
+                if (response.ok) {
+                    allPermissions = await response.json();
+                }
+            } catch (error) {
+                console.error('Fehler beim Laden der Rechte:', error);
+            }
+        }
+        
+        function renderUsersTable() {
+            const content = document.getElementById('users-content');
+            if (!content) return;
+            
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const hasPermission = user.permissions?.some(p => p.name.startsWith('users.'));
+            
+            if (!hasPermission) {
+                content.innerHTML = '<div class="error">Sie haben keine Berechtigung für die Benutzerverwaltung.</div>';
+                return;
+            }
+            
+            const canCreate = user.permissions?.some(p => p.name === 'users.create');
+            const canUpdate = user.permissions?.some(p => p.name === 'users.update');
+            const canDelete = user.permissions?.some(p => p.name === 'users.delete');
+            
+            let html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">';
+            html += '<h2 style="margin: 0;">Benutzerverwaltung</h2>';
+            if (canCreate) {
+                html += '<button onclick="showUserDialog()" class="btn btn-primary"><span class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 4px;">add</span>Neuer Benutzer</button>';
+            }
+            html += '</div>';
+            
+            html += '<table class="data-table"><thead><tr>';
+            html += '<th>Benutzername</th><th>E-Mail</th><th>Name</th><th>Rollen</th><th>Aktiv</th><th>Aktionen</th>';
+            html += '</tr></thead><tbody>';
+            
+            if (allUsers.length === 0) {
+                html += '<tr><td colspan="6" style="text-align: center; padding: 40px;">Keine Benutzer gefunden</td></tr>';
+            } else {
+                allUsers.forEach(u => {
+                    const roles = u.roles?.map(r => r.name).join(', ') || '-';
+                    html += `<tr>
+                        <td>${escapeHtml(u.username)}</td>
+                        <td>${escapeHtml(u.email)}</td>
+                        <td>${escapeHtml((u.firstName || '') + ' ' + (u.lastName || ''))}</td>
+                        <td>${escapeHtml(roles)}</td>
+                        <td>${u.isActive ? '<span style="color: green;">✓</span>' : '<span style="color: red;">✗</span>'}</td>
+                        <td>
+                            ${canUpdate ? `<button onclick="showUserDialog('${u.id}')" class="btn btn-sm btn-secondary">Bearbeiten</button>` : ''}
+                            ${canDelete && u.id !== user.id ? `<button onclick="deleteUser('${u.id}')" class="btn btn-sm btn-danger">Löschen</button>` : ''}
+                            ${canCreate ? `<button onclick="sendCredentials('${u.id}')" class="btn btn-sm btn-secondary">Login-Daten senden</button>` : ''}
+                        </td>
+                    </tr>`;
+                });
+            }
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function showUserDialog(userId) {
+            alert('Benutzer-Dialog wird implementiert');
+        }
+        
+        async function deleteUser(userId) {
+            if (!confirm('Möchten Sie diesen Benutzer wirklich löschen?')) return;
+            
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    await loadUsers();
+                } else {
+                    const error = await response.json();
+                    alert('Fehler: ' + (error.error || 'Unbekannter Fehler'));
+                }
+            } catch (error) {
+                alert('Fehler beim Löschen des Benutzers');
+                console.error(error);
+            }
+        }
+        
+        async function sendCredentials(userId) {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/users/${userId}/send-credentials`, {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    alert('Login-Daten wurden per E-Mail versendet.');
+                    if (data.password) {
+                        alert('Temporäres Passwort: ' + data.password);
+                    }
+                } else {
+                    alert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                }
+            } catch (error) {
+                alert('Fehler beim Versenden der Login-Daten');
+                console.error(error);
+            }
+        }
+        
+        // Erweitere showTab um users
+        const originalShowTab = window.showTab;
+        window.showTab = function(tabName) {
+            originalShowTab(tabName);
+            if (tabName === 'users') {
+                loadUsers();
+                loadRoles();
+                loadPermissions();
+            }
+        };
         
         // Initialisierung - warte bis DOM vollständig geladen ist
         function initializeApp() {
