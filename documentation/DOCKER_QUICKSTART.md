@@ -7,7 +7,7 @@
 cp .env.example .env
 
 # 2. Container starten
-./docker-start.sh
+./bin/docker-start.sh
 
 # Oder manuell:
 docker-compose up -d
@@ -15,9 +15,9 @@ docker-compose up -d
 
 ## 📍 Zugriff
 
-- **Backend API**: http://localhost:3001
-- **Health Check**: http://localhost:3001/api/health
-- **Datenbank**: localhost:3307
+- **Backend API**: http://localhost:3002
+- **Health Check**: http://localhost:3002/api/health
+- **Datenbank**: localhost:3397
 
 ## 🔧 Wichtige Befehle
 
@@ -41,8 +41,8 @@ docker-compose up -d
 
 ## 📋 Services
 
-- **mariadb**: MariaDB Datenbank (Port 3307)
-- **backend**: Perl/Mojolicious Backend (Port 3001)
+- **mariadb**: MariaDB Datenbank (Port 3397)
+- **backend**: Perl/Mojolicious Backend (Port 3002)
 
 ## 🔐 Konfiguration
 
@@ -53,4 +53,4 @@ Bearbeiten Sie `.env` für:
 
 ## 📚 Weitere Informationen
 
-Siehe `DOCKER.md` für detaillierte Dokumentation.
+Siehe `documentation/DOCKER.md` für detaillierte Dokumentation.

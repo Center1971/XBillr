@@ -25,15 +25,15 @@ BACKEND INSTALLATION:
    mysql -u root -p < sql/schema.sql
 
 4. Umgebungsvariablen setzen:
-   export DB_DSN="dbi:MariaDB:database=xbillr;host=localhost;port=3307"
-   export DB_USER="xbillr_user"
-   export DB_PASSWORD="xbillr_pass"
-   export ALLOWED_ORIGINS="http://localhost:3000"
+   export DB_DSN="dbi:MariaDB:database=xbillr;host=127.0.0.1;port=3397"
+   export DB_USER="root"
+   export DB_PASSWORD="u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX"
+   export ALLOWED_ORIGINS="http://localhost:3002"
 
 5. Backend starten:
    perl app.pl daemon
 
-Das Backend läuft auf http://localhost:3001
+Das Backend läuft auf http://localhost:3002
 
 FRONTEND INSTALLATION (falls vorhanden):
 -----------------------------------------
@@ -42,7 +42,7 @@ FRONTEND INSTALLATION (falls vorhanden):
 3. npm install
 4. npm start
 
-Das Frontend läuft auf http://localhost:3000
+Das Frontend läuft auf http://localhost:8082
 
 SICHERHEIT:
 -----------

@@ -234,7 +234,7 @@ time_entries (N) ──> (1) hourly_rates
 ## Deployment
 
 ### Backend
-- Port: 3001 (konfigurierbar)
+- Port: 3002 (konfigurierbar)
 - Prozess-Manager: Mojolicious daemon
 - Datenbank: MariaDB auf Port 3307
 

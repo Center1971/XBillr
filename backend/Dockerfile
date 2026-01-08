@@ -37,15 +37,15 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Port freigeben
-EXPOSE 3001
+EXPOSE 3002
 
 # Health Check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3001/api/health || exit 1
+    CMD curl -f http://localhost:3002/api/health || exit 1
 
 # Entrypoint setzen
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Startbefehl
-CMD ["perl", "app.pl", "daemon", "-l", "http://*:3001"]
+CMD ["perl", "app.pl", "daemon", "-l", "http://*:3002"]
 

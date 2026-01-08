@@ -17,7 +17,7 @@ services:
         max-file: "3"
     # Keine Ports nach außen in Produktion (nur über Reverse Proxy)
     # ports:
-    #   - "3001:3001"
+    #   - "3002:3002"
 
   mariadb:
     restart: always
@@ -28,7 +28,7 @@ services:
         max-file: "3"
     # Keine Ports nach außen in Produktion
     # ports:
-    #   - "3307:3306"
+    #   - "3397:3306"
     command: >
       --max-connections=200
       --innodb-buffer-pool-size=256M

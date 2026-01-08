@@ -9,15 +9,31 @@ use UUID::Tiny ':std';
 use DateTime;
 
 # Datenbankverbindung
-my $dsn = $ENV{DB_DSN} || "dbi:MariaDB:database=xbillr;host=localhost;port=3306";
-my $user = $ENV{DB_USER} || "xbillr_user";
-my $pass = $ENV{DB_PASSWORD} || "xbillr_pass";
+# Use environment variables from docker-compose.yml (set in container)
+my $dsn = $ENV{DB_DSN} || "dbi:MariaDB:database=xbillr;host=mariadb;port=3306";
+my $user = $ENV{DB_USER} || "root";
+my $pass = $ENV{DB_PASSWORD} || "u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX";
+
+# Debug: Print connection info (without password)
+print "Connecting to database: $dsn\n";
+print "User: $user\n";
 
 $dsn =~ s/^dbi:mysql/dbi:MariaDB/i;
+
+# Suppress DBIx::Class warnings for MariaDB (they're harmless)
+local $SIG{__WARN__} = sub {
+    my $msg = shift;
+    return if $msg =~ /undetermined_driver|MariaDB|This version of DBIC|DBIC_DRIVER|sql_limit_dialect/;
+    warn $msg;
+};
 
 my $schema = XBillr::Model::DB->connect($dsn, $user, $pass, {
     RaiseError => 1,
     PrintError => 0,
+    on_connect_do => [
+        'SET NAMES utf8mb4',
+        'SET CHARACTER SET utf8mb4',
+    ],
 });
 
 # Auth Service

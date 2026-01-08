@@ -8,7 +8,8 @@ requires 'JSON', '>= 4.05';
 requires 'UUID::Tiny', '>= 1.04';
 requires 'Math::BigFloat', '>= 1.0';
 requires 'PDF::API2', '>= 2.040';
-requires 'XML::LibXML', '>= 2.0206';
+requires 'XML::LibXML', '>= 1.0';
+# requires 'XML::LibXML', '>= 2.0206';
 requires 'Crypt::PBKDF2', '>= 0.161520';
 requires 'Email::Sender', '>= 1.300035';
 requires 'Email::Simple', '>= 2.218';
@@ -19,6 +20,6 @@ requires 'MIME::Base64', '>= 3.16';
 
 on 'test' => sub {
     requires 'Test::More', '>= 1.302190';
-    requires 'Test::Mojo', '>= 7.0';
+#    requires 'Test::Mojo', '>= 7.0';
 };
 

@@ -20,7 +20,9 @@ sudo mysql -e "GRANT ALL PRIVILEGES ON xbillr.* TO 'xbillr_user'@'localhost'; FL
 
 # Schema importieren
 echo "Importiere Schema..."
-cd "$(dirname "$0")/backend"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT/backend"
 sudo mysql xbillr < sql/schema.sql
 
 echo ""
@@ -28,4 +30,3 @@ echo "✅ Datenbank-Setup abgeschlossen!"
 echo ""
 echo "Teste Verbindung..."
 mysql -u xbillr_user -pxbillr_pass xbillr -e "SHOW TABLES;" 2>&1 | head -10
-

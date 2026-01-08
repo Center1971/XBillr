@@ -44,9 +44,9 @@ docker-compose logs -f mariadb
 ## Verfügbare Services
 
 ### Backend
-- **URL**: http://localhost:3001
-- **Health Check**: http://localhost:3001/api/health
-- **Port**: 3001 (konfigurierbar über `BACKEND_PORT`)
+- **URL**: http://localhost:3002
+- **Health Check**: http://localhost:3002/api/health
+- **Port**: 3002 (konfigurierbar über `BACKEND_PORT`)
 
 ### MariaDB
 - **Port**: 3307 (konfigurierbar über `DB_PORT`)
@@ -108,7 +108,7 @@ DB_PASSWORD=secure_password_here
 DB_PORT=3307
 
 # Backend
-BACKEND_PORT=3001
+BACKEND_PORT=3002
 ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 ```
 

@@ -4,7 +4,7 @@
 
 ### Voraussetzungen
 - Docker und Docker Compose installiert
-- Port 3001 und 3307 frei
+- Port 3002 und 3397 frei
 
 ### Starten
 
@@ -21,7 +21,7 @@ docker-compose up -d
 docker-compose logs -f backend
 
 # 4. Im Browser öffnen
-# http://localhost:3001/api/health
+# http://localhost:3002/api/health
 ```
 
 ### Probleme beheben
@@ -30,7 +30,7 @@ docker-compose logs -f backend
 ```bash
 # Port in .env ändern
 BACKEND_PORT=3002
-DB_PORT=3308
+DB_PORT=3397
 ```
 
 **Docker Build fehlgeschlagen:**
@@ -59,9 +59,9 @@ cpanm --installdeps .
 mysql -u root -p < sql/schema.sql
 
 # 3. Umgebungsvariablen setzen
-export DB_DSN="dbi:MariaDB:database=xbillr;host=localhost;port=3307"
-export DB_USER="xbillr_user"
-export DB_PASSWORD="xbillr_pass"
+export DB_DSN="dbi:MariaDB:database=xbillr;host=localhost;port=3397"
+export DB_USER="root"
+export DB_PASSWORD="u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX"
 
 # 4. Backend starten
 perl app.pl daemon
@@ -70,12 +70,12 @@ perl app.pl daemon
 ## API Test-Seite
 
 Eine Test-Seite ist verfügbar unter:
-- `test-api.html` - Öffnen Sie diese Datei im Browser
+- `frontend/test-api.html` - Öffnen Sie diese Datei im Browser
 
 ## Verfügbare URLs
 
-- **Backend API**: http://localhost:3001
-- **Health Check**: http://localhost:3001/api/health
+- **Backend API**: http://localhost:3002
+- **Health Check**: http://localhost:3002/api/health
 - **API Dokumentation**: Siehe backend/README.md
 
 ## Hilfe
@@ -83,5 +83,5 @@ Eine Test-Seite ist verfügbar unter:
 Bei Problemen:
 1. Prüfen Sie die Logs: `docker-compose logs -f`
 2. Prüfen Sie die Container: `docker-compose ps`
-3. Prüfen Sie die Ports: `netstat -tulpn | grep -E '3001|3307'`
+3. Prüfen Sie die Ports: `netstat -tulpn | grep -E '3002|3397'`
 

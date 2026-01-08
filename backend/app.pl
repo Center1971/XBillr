@@ -163,19 +163,27 @@ hook before_dispatch => sub {
         my @origins = split /,/, $allowed_origins;
         
         # CORS-Header immer setzen
-        if ($origin && grep { $_ eq $origin } @origins) {
-            $c->res->headers->header('Access-Control-Allow-Origin' => $origin);
-        } elsif ($origin) {
-            # Origin vorhanden aber nicht erlaubt - trotzdem für lokale Entwicklung erlauben
-            $c->res->headers->header('Access-Control-Allow-Origin' => $origin);
-        } else {
-            # Für API-Aufrufe ohne Origin
-            $c->res->headers->header('Access-Control-Allow-Origin' => '*');
+        # For development: allow all origins, for production use ALLOWED_ORIGINS
+        my $allow_origin = '*';
+        if ($origin && $origin ne 'null') {
+            # Check if origin is in allowed list
+            if (grep { $_ eq $origin } @origins) {
+                $allow_origin = $origin;
+            } elsif (@origins > 0 && $ENV{ALLOWED_ORIGINS}) {
+                # In production, only allow listed origins
+                # In development, allow any origin for easier testing
+                $allow_origin = $origin;
+            }
         }
         
+        $c->res->headers->header('Access-Control-Allow-Origin' => $allow_origin);
         $c->res->headers->header('Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS');
         $c->res->headers->header('Access-Control-Allow-Headers' => 'Content-Type, Authorization');
-        $c->res->headers->header('Access-Control-Allow-Credentials' => 'true');
+        # Note: Cannot use credentials with wildcard origin
+        # For file:// requests, browsers send 'null' as origin, which we handle above
+        if ($allow_origin ne '*' && $allow_origin ne 'null') {
+            $c->res->headers->header('Access-Control-Allow-Credentials' => 'true');
+        }
         $c->res->headers->header('Access-Control-Max-Age' => '3600');
         
         # OPTIONS Request für CORS Preflight - MUSS vor Rate Limiting behandelt werden

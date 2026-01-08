@@ -15,7 +15,7 @@ Das Dockerfile basiert auf `perl:5.36-slim` und:
 2. Installiert CPAN-Dependencies aus `cpanfile`
 3. Kopiert Anwendungsdateien
 4. Setzt Health Check
-5. Startet Mojolicious auf Port 3001
+5. Startet Mojolicious auf Port 3002
 
 ## Entrypoint
 
@@ -35,7 +35,7 @@ docker build -t xbillr-backend --cache-from xbillr-backend .
 
 ```bash
 # Container lokal testen
-docker run --rm -p 3001:3001 \
+docker run --rm -p 3002:3002 \
   -e DB_DSN="dbi:MariaDB:database=xbillr;host=host.docker.internal;port=3307" \
   -e DB_USER="xbillr_user" \
   -e DB_PASSWORD="xbillr_pass" \

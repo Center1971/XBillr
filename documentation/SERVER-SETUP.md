@@ -39,13 +39,13 @@ nano .env  # Bearbeiten Sie die Datenbankverbindung
 ### 4. Mit Docker starten
 
 ```bash
-chmod +x docker-start.sh
-./docker-start.sh
+chmod +x bin/docker-start.sh
+./bin/docker-start.sh
 ```
 
 Die Anwendung läuft dann auf:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
+- Frontend: http://localhost:8082
+- Backend API: http://localhost:3002
 
 ## Option 2: Manuelle Installation
 
@@ -104,7 +104,7 @@ eval $(perl -I ~/perl5/lib/perl5 -Mlocal::lib)
 export PERL5LIB="$HOME/perl5/lib/perl5:$PWD/lib:$PERL5LIB"
 
 # Entwicklungsserver
-morbo app.pl -l http://*:3001
+morbo app.pl -l http://*:3002
 
 # Produktionsserver (mit Hypnotoad)
 hypnotoad app.pl
@@ -119,7 +119,7 @@ sudo cp index.html /var/www/html/
 sudo systemctl restart nginx
 
 # Oder mit einem einfachen Python-HTTP-Server
-python3 -m http.server 3000
+python3 -m http.server 8082
 ```
 
 ## Produktions-Deployment
@@ -140,7 +140,7 @@ server {
 
     # Backend API
     location /api {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:3002;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -162,7 +162,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/xbillr/backend
 Environment="PERL5LIB=/opt/xbillr/backend/lib:/home/www-data/perl5/lib/perl5"
-ExecStart=/usr/bin/perl /opt/xbillr/backend/app.pl daemon -l http://*:3001
+ExecStart=/usr/bin/perl /opt/xbillr/backend/app.pl daemon -l http://*:3002
 Restart=always
 
 [Install]
@@ -200,8 +200,8 @@ mysql -u xbillr_user -p xbillr -e "SELECT 1;"
 ### Port bereits belegt
 
 ```bash
-# Prüfen Sie, welcher Prozess Port 3001 verwendet
-sudo lsof -i :3001
+# Prüfen Sie, welcher Prozess Port 3002 verwendet
+sudo lsof -i :3002
 
 # Beenden Sie den Prozess oder ändern Sie den Port in app.pl
 ```

@@ -15,13 +15,13 @@ export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:3000}"
 export PERL5LIB="$HOME/perl5/lib/perl5:$PWD/lib:$PERL5LIB"
 
 # Port freigeben falls belegt
-lsof -ti:3001 | xargs kill -9 2>/dev/null
+lsof -ti:3002 | xargs kill -9 2>/dev/null
 
 # Backend starten
 echo "Starte XBillr Backend..."
 echo "DB_DSN: $DB_DSN"
-echo "Backend URL: http://localhost:3001"
+echo "Backend URL: http://localhost:3002"
 echo ""
 
-perl app.pl daemon -l http://*:3001
+perl app.pl daemon -l http://*:3002
 

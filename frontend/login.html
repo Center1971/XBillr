@@ -153,7 +153,7 @@
     </div>
     
     <script>
-        const API_BASE = 'http://localhost:3001/api';
+        const API_BASE = 'http://localhost:3002/api';
         
         // Prüfe ob bereits eingeloggt
         const sessionToken = localStorage.getItem('sessionToken');
@@ -231,7 +231,20 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                errorMessage.textContent = 'Verbindungsfehler. Bitte versuchen Sie es erneut.';
+                let errorMsg = 'Verbindungsfehler. Bitte versuchen Sie es erneut.';
+                
+                // More detailed error messages
+                if (error.message) {
+                    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                        errorMsg = 'Verbindung zum Server fehlgeschlagen. Bitte überprüfen Sie, ob der Backend-Server läuft.';
+                    } else if (error.message.includes('CORS')) {
+                        errorMsg = 'CORS-Fehler: Bitte öffnen Sie diese Seite über einen HTTP-Server (nicht direkt als Datei).';
+                    } else {
+                        errorMsg = `Fehler: ${error.message}`;
+                    }
+                }
+                
+                errorMessage.textContent = errorMsg;
                 errorMessage.classList.add('show');
                 loginButton.disabled = false;
                 loginButton.textContent = 'Anmelden';

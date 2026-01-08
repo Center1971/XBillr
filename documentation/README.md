@@ -40,7 +40,7 @@ mysql -u root -p < sql/schema.sql
 perl app.pl daemon
 ```
 
-Das Backend läuft standardmäßig auf `http://localhost:3001`
+Das Backend läuft standardmäßig auf `http://localhost:3002`
 
 ### Frontend Setup
 
@@ -50,7 +50,7 @@ npm install
 
 # Optional: API URL konfigurieren
 # Erstellen Sie eine .env Datei mit:
-# REACT_APP_API_URL=http://localhost:3001/api
+# REACT_APP_API_URL=http://localhost:3002/api
 
 npm start
 ```

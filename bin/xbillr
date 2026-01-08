@@ -1,0 +1,468 @@
+#!/bin/bash
+
+###############################################################################
+Konfiguration (Umgebungsvariablen sind Defaults)
+===============================================================================
+
+# Datenbank-Konfiguration
+DB_ROOT_PASSWORD="${XBILLR_DB_ROOT_PASSWORD:=u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX}"
+DB_USER="${XBILLR_DB_USER:=root}"
+DB_PASSWORD="${XBILLR_DB_PASSWORD:=u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX}"
+DB_PORT="${XBILLR_DB_PORT:=3397}"
+
+# Backend-Konfiguration
+BACKEND_PORT="${XBILLR_BACKEND_PORT:=3002}"
+ALLOWED_ORIGINS="${XBILLR_ALLOWED_ORIGINS:=http://localhost:3002}"
+
+# Frontend-Konfiguration (falls vorhanden)
+FRONTEND_PORT="${XBILLR_FRONTEND_PORT:=8082}"
+
+###############################################################################
+
+# XBillr Management Script
+# Manages backend (Docker) and frontend for Production and Development environments
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# PID file paths
+BACKEND_PID_FILE="$PROJECT_ROOT/.backend.pid"
+FRONTEND_PID_FILE="$PROJECT_ROOT/.frontend.pid"
+
+# Default values
+SYSTEM="devel"
+COMPONENT="all"
+ACTION=""
+
+# Docker compose command detection
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo -e "${RED}ERROR: Docker Compose is not installed!${NC}"
+    exit 1
+fi
+
+# Functions
+print_usage() {
+    echo "Usage: $0 <action> <system> [component]"
+    echo ""
+    echo "Actions:"
+    echo "  start     - Start backend and/or frontend"
+    echo "  stop      - Stop backend and/or frontend"
+    echo "  restart   - Restart backend and/or frontend"
+    echo "  status    - Show status of backend and/or frontend"
+    echo "  logs      - Show logs (backend only)"
+    echo ""
+    echo "Systems:"
+    echo "  prod      - Production environment"
+    echo "  devel     - Development environment (default)"
+    echo ""
+    echo "Components:"
+    echo "  backend   - Backend Docker containers only"
+    echo "  frontend  - Frontend only"
+    echo "  all       - Both backend and frontend (default)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 start devel              # Start all in development"
+    echo "  $0 stop prod backend        # Stop backend in production"
+    echo "  $0 restart devel frontend   # Restart frontend in development"
+    echo "  $0 status prod              # Show status in production"
+    echo "  $0 logs devel               # Show backend logs in development"
+}
+
+get_compose_files() {
+    local system=$1
+    if [ "$system" = "prod" ]; then
+        echo "-f docker-compose.yml -f docker-compose.prod.yml"
+    else
+        echo "-f docker-compose.yml"
+    fi
+}
+
+# Gracefully stop process by PID
+graceful_stop() {
+    local pid_file=$1
+    local process_name=$2
+    
+    if [ ! -f "$pid_file" ]; then
+        return 0
+    fi
+    
+    # Read PID from first line (PID files may have multiple lines with metadata)
+    local pid=$(head -n1 "$pid_file" 2>/dev/null | grep -E '^[0-9]+$' || echo "")
+    if [ -z "$pid" ]; then
+        # If first line is not a PID, try to find it
+        pid=$(grep -E '^[0-9]+$' "$pid_file" 2>/dev/null | head -n1 || echo "")
+    fi
+    
+    if [ -z "$pid" ]; then
+        rm -f "$pid_file"
+        return 0
+    fi
+    
+    # Check if process is still running
+    if ps -p "$pid" > /dev/null 2>&1; then
+        echo -e "${YELLOW}Stopping existing $process_name (PID: $pid)...${NC}"
+        
+        # Try graceful shutdown (SIGTERM)
+        kill -TERM "$pid" 2>/dev/null || true
+        
+        # Wait up to 5 seconds for graceful shutdown
+        local count=0
+        while [ $count -lt 5 ] && ps -p "$pid" > /dev/null 2>&1; do
+            sleep 1
+            count=$((count + 1))
+        done
+        
+        # If still running, force kill
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo -e "${YELLOW}Process did not stop gracefully, forcing shutdown...${NC}"
+            kill -KILL "$pid" 2>/dev/null || true
+            sleep 1
+        fi
+        
+        echo -e "${GREEN}$process_name stopped${NC}"
+    else
+        echo -e "${YELLOW}Stale PID file found for $process_name, cleaning up...${NC}"
+    fi
+    
+    # Remove PID file
+    rm -f "$pid_file"
+}
+
+# Check and stop backend if running
+check_and_stop_backend() {
+    local system=$1
+    local compose_files=$(get_compose_files "$system")
+    
+    # Check if containers are running
+    if $DOCKER_COMPOSE $compose_files ps | grep -q "xbillr-backend.*Up"; then
+        echo -e "${YELLOW}Backend containers are already running, stopping them...${NC}"
+        $DOCKER_COMPOSE $compose_files stop backend mariadb
+        sleep 2
+    fi
+    
+    # Clean up PID file if exists
+    if [ -f "$BACKEND_PID_FILE" ]; then
+        rm -f "$BACKEND_PID_FILE"
+    fi
+}
+
+# Check and stop frontend if running
+check_and_stop_frontend() {
+    graceful_stop "$FRONTEND_PID_FILE" "frontend"
+}
+
+backend_start() {
+    local system=$1
+    echo -e "${BLUE}Starting backend (${system})...${NC}"
+    cd "$PROJECT_ROOT"
+    
+    # Check and stop if already running
+    check_and_stop_backend "$system"
+    
+    local compose_files=$(get_compose_files "$system")
+    
+    # Build if needed
+    if [ "$system" = "devel" ]; then
+        $DOCKER_COMPOSE $compose_files build backend
+    fi
+    
+    $DOCKER_COMPOSE $compose_files up -d mariadb backend
+    
+    # Create PID file to track that backend is running
+    # For Docker, we'll use a marker file with container info
+    echo "system=$system" > "$BACKEND_PID_FILE"
+    echo "compose_files=$compose_files" >> "$BACKEND_PID_FILE"
+    echo "started_at=$(date +%s)" >> "$BACKEND_PID_FILE"
+    
+    echo -e "${GREEN}Backend started!${NC}"
+    echo -e "${YELLOW}Waiting for services to be healthy...${NC}"
+    sleep 5
+    
+    # Show status
+    $DOCKER_COMPOSE $compose_files ps
+}
+
+backend_stop() {
+    local system=$1
+    echo -e "${BLUE}Stopping backend (${system})...${NC}"
+    cd "$PROJECT_ROOT"
+    
+    # Get compose files from PID file if available, otherwise use system
+    local compose_files
+    if [ -f "$BACKEND_PID_FILE" ]; then
+        local saved_system=$(grep "^system=" "$BACKEND_PID_FILE" | cut -d= -f2)
+        if [ -n "$saved_system" ]; then
+            compose_files=$(get_compose_files "$saved_system")
+        else
+            compose_files=$(get_compose_files "$system")
+        fi
+    else
+        compose_files=$(get_compose_files "$system")
+    fi
+    
+    $DOCKER_COMPOSE $compose_files stop backend mariadb
+    
+    # Remove PID file
+    rm -f "$BACKEND_PID_FILE"
+    
+    echo -e "${GREEN}Backend stopped!${NC}"
+}
+
+backend_restart() {
+    local system=$1
+    echo -e "${BLUE}Restarting backend (${system})...${NC}"
+    backend_stop "$system"
+    sleep 2
+    backend_start "$system"
+}
+
+backend_status() {
+    local system=$1
+    echo -e "${BLUE}Backend status (${system}):${NC}"
+    cd "$PROJECT_ROOT"
+    
+    # Get compose files from PID file if available, otherwise use system
+    local compose_files
+    if [ -f "$BACKEND_PID_FILE" ]; then
+        local saved_system=$(grep "^system=" "$BACKEND_PID_FILE" | cut -d= -f2)
+        if [ -n "$saved_system" ]; then
+            compose_files=$(get_compose_files "$saved_system")
+            echo -e "${YELLOW}Backend was started in '$saved_system' mode${NC}"
+        else
+            compose_files=$(get_compose_files "$system")
+        fi
+    else
+        compose_files=$(get_compose_files "$system")
+    fi
+    
+    $DOCKER_COMPOSE $compose_files ps
+}
+
+backend_logs() {
+    local system=$1
+    echo -e "${BLUE}Backend logs (${system}):${NC}"
+    cd "$PROJECT_ROOT"
+    
+    local compose_files=$(get_compose_files "$system")
+    $DOCKER_COMPOSE $compose_files logs -f backend
+}
+
+frontend_start() {
+    local system=$1
+    echo -e "${BLUE}Starting frontend (${system})...${NC}"
+    cd "$PROJECT_ROOT"
+    
+    # Check and stop if already running
+    check_and_stop_frontend
+    
+    # Check if frontend directory exists with package.json
+    if [ -d "$PROJECT_ROOT/frontend" ] && [ -f "$PROJECT_ROOT/frontend/package.json" ]; then
+        cd "$PROJECT_ROOT/frontend"
+        
+        # Install dependencies if needed
+        if [ ! -d "node_modules" ]; then
+            echo -e "${YELLOW}Installing frontend dependencies...${NC}"
+            npm install
+        fi
+        
+        # Start frontend based on system
+        if [ "$system" = "prod" ]; then
+            echo -e "${YELLOW}Building frontend for production...${NC}"
+            npm run build
+            echo -e "${GREEN}Frontend built for production!${NC}"
+            echo -e "${YELLOW}Note: In production, serve the build directory with a web server (nginx, apache, etc.)${NC}"
+        else
+            echo -e "${GREEN}Starting frontend development server...${NC}"
+            # Start in background and save PID
+            npm start > /tmp/xbillr-frontend.log 2>&1 &
+            local pid=$!
+            echo $pid > "$FRONTEND_PID_FILE"
+            echo "system=$system" >> "$FRONTEND_PID_FILE"
+            echo "started_at=$(date +%s)" >> "$FRONTEND_PID_FILE"
+            echo -e "${GREEN}Frontend started! (PID: $pid)${NC}"
+            echo -e "${YELLOW}Frontend logs: tail -f /tmp/xbillr-frontend.log${NC}"
+        fi
+    else
+        echo -e "${YELLOW}No frontend directory with package.json found.${NC}"
+        echo -e "${YELLOW}Frontend appears to be static HTML files.${NC}"
+        echo -e "${YELLOW}Starting HTTP server for static files...${NC}"
+        
+        # Find available port
+        local port=8080
+        for alt_port in 8080 8081 8082 3000 8000 8888; do
+            if ! lsof -i :$alt_port >/dev/null 2>&1 && ! ss -tlnp 2>/dev/null | grep -q ":$alt_port "; then
+                port=$alt_port
+                break
+            fi
+        done
+        
+        cd "$PROJECT_ROOT/frontend"
+        python3 -m http.server $port > /tmp/xbillr-frontend.log 2>&1 &
+        local pid=$!
+        echo $pid > "$FRONTEND_PID_FILE"
+        echo "system=$system" >> "$FRONTEND_PID_FILE"
+        echo "port=$port" >> "$FRONTEND_PID_FILE"
+        echo "started_at=$(date +%s)" >> "$FRONTEND_PID_FILE"
+        echo -e "${GREEN}Frontend HTTP server started! (PID: $pid, Port: $port)${NC}"
+        echo -e "${YELLOW}Open: http://localhost:$port/login.html${NC}"
+        echo -e "${YELLOW}Frontend logs: tail -f /tmp/xbillr-frontend.log${NC}"
+    fi
+}
+
+frontend_stop() {
+    local system=$1
+    echo -e "${BLUE}Stopping frontend (${system})...${NC}"
+    
+    graceful_stop "$FRONTEND_PID_FILE" "frontend"
+    
+    # Also check old location for backward compatibility
+    if [ -f "/tmp/xbillr-frontend.pid" ]; then
+        local pid=$(cat /tmp/xbillr-frontend.pid)
+        if ps -p "$pid" > /dev/null 2>&1; then
+            kill -TERM "$pid" 2>/dev/null || true
+            sleep 1
+            if ps -p "$pid" > /dev/null 2>&1; then
+                kill -KILL "$pid" 2>/dev/null || true
+            fi
+        fi
+        rm -f /tmp/xbillr-frontend.pid
+    fi
+}
+
+frontend_restart() {
+    local system=$1
+    echo -e "${BLUE}Restarting frontend (${system})...${NC}"
+    frontend_stop "$system"
+    sleep 2
+    frontend_start "$system"
+}
+
+frontend_status() {
+    local system=$1
+    echo -e "${BLUE}Frontend status (${system}):${NC}"
+    
+    if [ -f "$FRONTEND_PID_FILE" ]; then
+        local pid=$(head -n1 "$FRONTEND_PID_FILE" 2>/dev/null)
+        if [ -n "$pid" ] && ps -p "$pid" > /dev/null 2>&1; then
+            local port=$(grep "^port=" "$FRONTEND_PID_FILE" | cut -d= -f2)
+            if [ -n "$port" ]; then
+                echo -e "${GREEN}Frontend is running (PID: $pid, Port: $port)${NC}"
+            else
+                echo -e "${GREEN}Frontend is running (PID: $pid)${NC}"
+            fi
+        else
+            echo -e "${RED}Frontend process not running (stale PID file)${NC}"
+            rm -f "$FRONTEND_PID_FILE"
+        fi
+    elif [ -f "/tmp/xbillr-frontend.pid" ]; then
+        # Backward compatibility
+        local pid=$(cat /tmp/xbillr-frontend.pid)
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo -e "${GREEN}Frontend is running (PID: $pid)${NC}"
+        else
+            echo -e "${RED}Frontend process not running (stale PID file)${NC}"
+            rm -f /tmp/xbillr-frontend.pid
+        fi
+    else
+        if [ -d "$PROJECT_ROOT/frontend" ] && [ -f "$PROJECT_ROOT/frontend/package.json" ]; then
+            echo -e "${YELLOW}Frontend is not running${NC}"
+        else
+            echo -e "${YELLOW}Frontend is static HTML files${NC}"
+        fi
+    fi
+}
+
+# Parse arguments
+if [ $# -lt 1 ]; then
+    print_usage
+    exit 1
+fi
+
+ACTION=$1
+shift
+
+if [ $# -ge 1 ]; then
+    SYSTEM=$1
+    shift
+fi
+
+if [ $# -ge 1 ]; then
+    COMPONENT=$1
+fi
+
+# Validate system
+if [ "$SYSTEM" != "prod" ] && [ "$SYSTEM" != "devel" ]; then
+    echo -e "${RED}ERROR: Invalid system '$SYSTEM'. Use 'prod' or 'devel'.${NC}"
+    exit 1
+fi
+
+# Validate action
+case "$ACTION" in
+    start|stop|restart|status|logs)
+        ;;
+    *)
+        echo -e "${RED}ERROR: Invalid action '$ACTION'.${NC}"
+        print_usage
+        exit 1
+        ;;
+esac
+
+# Validate component for logs action
+if [ "$ACTION" = "logs" ] && [ "$COMPONENT" != "backend" ] && [ "$COMPONENT" != "all" ]; then
+    echo -e "${RED}ERROR: Logs are only available for backend.${NC}"
+    exit 1
+fi
+
+# Execute action
+case "$ACTION" in
+    start)
+        if [ "$COMPONENT" = "backend" ] || [ "$COMPONENT" = "all" ]; then
+            backend_start "$SYSTEM"
+        fi
+        if [ "$COMPONENT" = "frontend" ] || [ "$COMPONENT" = "all" ]; then
+            frontend_start "$SYSTEM"
+        fi
+        ;;
+    stop)
+        if [ "$COMPONENT" = "frontend" ] || [ "$COMPONENT" = "all" ]; then
+            frontend_stop "$SYSTEM"
+        fi
+        if [ "$COMPONENT" = "backend" ] || [ "$COMPONENT" = "all" ]; then
+            backend_stop "$SYSTEM"
+        fi
+        ;;
+    restart)
+        if [ "$COMPONENT" = "backend" ] || [ "$COMPONENT" = "all" ]; then
+            backend_restart "$SYSTEM"
+        fi
+        if [ "$COMPONENT" = "frontend" ] || [ "$COMPONENT" = "all" ]; then
+            frontend_restart "$SYSTEM"
+        fi
+        ;;
+    status)
+        if [ "$COMPONENT" = "backend" ] || [ "$COMPONENT" = "all" ]; then
+            backend_status "$SYSTEM"
+            echo ""
+        fi
+        if [ "$COMPONENT" = "frontend" ] || [ "$COMPONENT" = "all" ]; then
+            frontend_status "$SYSTEM"
+        fi
+        ;;
+    logs)
+        backend_logs "$SYSTEM"
+        ;;
+esac

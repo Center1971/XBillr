@@ -37,6 +37,10 @@ Thumbs.db
 /tmp/
 /temp/
 
+# PID files
+.backend.pid
+.frontend.pid
+
 # Node modules (falls vorhanden)
 node_modules/
 npm-debug.log*
