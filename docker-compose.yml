@@ -13,6 +13,7 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./backend/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./backend/sql/user_management.sql:/docker-entrypoint-initdb.d/02-user_management.sql:ro
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci

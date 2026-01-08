@@ -175,6 +175,14 @@ backend_start() {
     
     local compose_files=$(get_compose_files "$system")
     
+    # Export environment variables for docker-compose
+    export DB_ROOT_PASSWORD
+    export DB_USER
+    export DB_PASSWORD
+    export DB_PORT
+    export BACKEND_PORT
+    export ALLOWED_ORIGINS
+    
     # Build if needed
     if [ "$system" = "devel" ]; then
         $DOCKER_COMPOSE $compose_files build backend
@@ -301,14 +309,17 @@ frontend_start() {
         echo -e "${YELLOW}Frontend appears to be static HTML files.${NC}"
         echo -e "${YELLOW}Starting HTTP server for static files...${NC}"
         
-        # Find available port
-        local port=8080
-        for alt_port in 8080 8081 8082 3000 8000 8888; do
-            if ! lsof -i :$alt_port >/dev/null 2>&1 && ! ss -tlnp 2>/dev/null | grep -q ":$alt_port "; then
-                port=$alt_port
-                break
-            fi
-        done
+        # Use configured FRONTEND_PORT, or find available port if it's in use
+        local port=$FRONTEND_PORT
+        if lsof -i :$port >/dev/null 2>&1 || ss -tlnp 2>/dev/null | grep -q ":$port "; then
+            echo -e "${YELLOW}Port $port is in use, finding alternative...${NC}"
+            for alt_port in 8080 8081 8082 3000 8000 8888; do
+                if ! lsof -i :$alt_port >/dev/null 2>&1 && ! ss -tlnp 2>/dev/null | grep -q ":$alt_port "; then
+                    port=$alt_port
+                    break
+                fi
+            done
+        fi
         
         cd "$PROJECT_ROOT/frontend"
         python3 -m http.server $port > /tmp/xbillr-frontend.log 2>&1 &
