@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ###############################################################################
-Konfiguration (Umgebungsvariablen sind Defaults)
-===============================================================================
+#Konfiguration (Umgebungsvariablen sind Defaults)
+#==============================================================================
 
 # Datenbank-Konfiguration
 DB_ROOT_PASSWORD="${XBILLR_DB_ROOT_PASSWORD:=u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX}"
