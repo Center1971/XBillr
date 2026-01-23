@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XBillr - Anmeldung</title>
+    <link rel="icon" type="image/png" href="images/xbillr_favicon.png">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         * {
@@ -129,127 +130,57 @@
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>XBillr</h1>
+            <picture>
+                <source srcset="images/xbillr_logo.svg" type="image/svg+xml">
+                <img src="images/xbillr_logo.png" alt="XBillr" style="max-width: 200px; height: auto; margin-bottom: 10px;">
+            </picture>
             <p>Rechnungsverwaltung</p>
         </div>
         
         <div class="error-message" id="errorMessage"></div>
         
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="username">Benutzername oder E-Mail</label>
-                <input type="text" id="username" name="username" required autofocus>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Passwort</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            
-            <button type="submit" class="login-button" id="loginButton">
-                Anmelden
+        <div style="text-align: center;">
+            <button class="login-button" id="loginButton" onclick="initiateLogin()">
+                Mit Keycloak anmelden
             </button>
-        </form>
+        </div>
     </div>
     
     <script>
         const API_BASE = 'http://localhost:3002/api';
         
-        // Prüfe ob bereits eingeloggt
-        const sessionToken = localStorage.getItem('sessionToken');
-        if (sessionToken) {
-            // Validiere Session
-            fetch(`${API_BASE}/auth/me`, {
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.href = 'index.html';
-                } else {
-                    localStorage.removeItem('sessionToken');
-                    localStorage.removeItem('user');
-                }
-            })
-            .catch(() => {
-                localStorage.removeItem('sessionToken');
-                localStorage.removeItem('user');
-            });
-        }
-        
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorMessage = document.getElementById('errorMessage');
-            const loginButton = document.getElementById('loginButton');
-            
-            // Verstecke Fehlermeldung
-            errorMessage.classList.remove('show');
-            errorMessage.textContent = '';
-            
-            // Deaktiviere Button
-            loginButton.disabled = true;
-            loginButton.innerHTML = '<span class="loading"></span> Anmelden...';
-            
+        // Check if already logged in by testing the session
+        async function checkSession() {
             try {
-                const response = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username, password }),
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    credentials: 'include', // Important: include cookies
                 });
                 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ error: 'Anmeldung fehlgeschlagen' }));
-                    errorMessage.textContent = errorData.error || 'Anmeldung fehlgeschlagen';
-                    errorMessage.classList.add('show');
-                    loginButton.disabled = false;
-                    loginButton.textContent = 'Anmelden';
-                    return;
-                }
-                
-                const data = await response.json();
-                console.log('Login response:', data);
-                
-                if (data.success && data.session_token) {
-                    // Speichere Session-Token und Benutzerdaten
-                    localStorage.setItem('sessionToken', data.session_token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    
-                    // Weiterleitung zur Hauptseite
+                if (response.ok) {
+                    // Already logged in, redirect to main app
                     window.location.href = 'index.html';
-                } else {
-                    // Zeige Fehlermeldung
-                    errorMessage.textContent = data.error || 'Anmeldung fehlgeschlagen';
-                    errorMessage.classList.add('show');
-                    loginButton.disabled = false;
-                    loginButton.textContent = 'Anmelden';
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                let errorMsg = 'Verbindungsfehler. Bitte versuchen Sie es erneut.';
-                
-                // More detailed error messages
-                if (error.message) {
-                    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                        errorMsg = 'Verbindung zum Server fehlgeschlagen. Bitte überprüfen Sie, ob der Backend-Server läuft.';
-                    } else if (error.message.includes('CORS')) {
-                        errorMsg = 'CORS-Fehler: Bitte öffnen Sie diese Seite über einen HTTP-Server (nicht direkt als Datei).';
-                    } else {
-                        errorMsg = `Fehler: ${error.message}`;
-                    }
-                }
-                
-                errorMessage.textContent = errorMsg;
-                errorMessage.classList.add('show');
-                loginButton.disabled = false;
-                loginButton.textContent = 'Anmelden';
+                // Not logged in or error, stay on login page
+                console.log('No active session');
             }
-        });
+        }
+        
+        // Initiate OAuth2/OIDC login flow
+        function initiateLogin() {
+            const loginButton = document.getElementById('loginButton');
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="loading"></span> Weiterleitung zu Keycloak...';
+            
+            // Redirect to backend login endpoint, which will redirect to Keycloak
+            // After successful login, Keycloak redirects to /api/auth/oidc/callback
+            // which stores the session and redirects to the main app
+            const returnTo = new URLSearchParams(window.location.search).get('return_to') || '/index.html';
+            window.location.href = `${API_BASE}/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+        }
+        
+        // Check for existing session on page load
+        checkSession();
     </script>
 </body>
 </html>

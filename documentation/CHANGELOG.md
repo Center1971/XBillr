@@ -2,6 +2,77 @@
 
 Alle wichtigen Änderungen an XBillr werden in dieser Datei dokumentiert.
 
+## [0.5] - 2026-01-23
+
+### Hinzugefügt
+- **OAuth2/OIDC Authorization Code Flow**: Implementierung des Best-Practice BFF-Patterns
+  - Login redirects to Keycloak (keine Credentials mehr in XBillr)
+  - Session-basierte Authentifizierung mit HTTP-only Cookies
+  - JWT-Validierung (Signature, iss, aud, exp, roles)
+  - Support für client_secret und private_key_jwt Authentifizierung
+  - Tenant-Isolation via `groups` Claim
+- **Session Management**: Secure Cookie-basierte Sessions (SameSite=Lax, HTTP-only)
+- **Auto-Provisioning**: Optionale automatische User-Erstellung aus IAM (deaktiviert per default)
+- **Frontend OAuth**: Login-Button für Keycloak-Redirect statt Passwort-Form
+- **Documentation**: OAUTH2_IMPLEMENTATION.md mit vollständiger Flow-Dokumentation
+
+### Geändert
+- **Authentifizierung**: Vollständiger Wechsel von Password Grant zu Authorization Code Flow
+  - `/api/auth/login` ist jetzt GET und redirected zu Keycloak
+  - `/api/auth/oidc/callback` handhabt Code-Exchange und Token-Validierung
+  - Frontend verwendet `credentials: 'include'` statt localStorage tokens
+- **Session Storage**: Tokens werden nicht mehr im Cookie gespeichert (Cookie-Overflow-Fix)
+  - Nur `user_info` wird in Session gespeichert
+  - Optional: `store_session_tokens` für Token-Storage
+- **Routing**: Manuelle Route-Registration (OpenAPI Plugin temporär disabled)
+  - Controller-Namespace explizit gesetzt
+  - Auth-Routes vor OpenAPI-Plugin registriert
+- **Health Controller**: Umstellung von `render(openapi => ...)` auf `render(json => ...)`
+- **Middleware**: `authenticate_request` prüft Session-Auth vor Token-Auth
+- **Configuration**: 
+  - `frontend_url` für korrekte Redirects
+  - `tls_verify` für TLS-Verifizierung (default: 1)
+  - `auto_provision` disabled per default
+
+### Entfernt
+- **Password-basiertes Login**: Keine Username/Password-Form mehr im Frontend
+- **localStorage Tokens**: Keine Client-seitigen Token-Speicherung mehr
+- **Password Grant**: Resource Owner Password Credentials Flow entfernt
+- **Obsolete Scripts**: diagnose_login.sh, fix_login_issues.sh, test_login.sh
+
+### Sicherheit
+- ✅ Keine Credentials in XBillr Frontend/Backend
+- ✅ Tokens nur server-seitig (HTTP-only Cookies)
+- ✅ CSRF-Protection via `state` Parameter
+- ✅ JWT-Validierung (sig, iss, aud, exp, roles)
+- ✅ Tenant-Isolation via Groups
+- ✅ TLS-Verifizierung enabled
+
+### Bekannte Probleme
+- OpenAPI Plugin temporär disabled (Routing-Konflikt)
+- Database-Verbindung in Health-Endpoint fehlerhaft
+- Auto-Provisioning benötigt funktionierende DB-Verbindung
+
+## [0.4] - 2026-01-16
+
+### Hinzugefügt
+- OpenAPI 3.1 Spezifikation in `backend/openapi.yaml`
+- Scalar API-Dokumentation in `documentation/api/`
+- OIDC/OAuth2 Konfiguration in `config/xbillr.conf`
+- JWT-basierte Authentifizierung inkl. Rollenextraktion für Web- und Mobile-Clients
+- Postman Collection in `postman/` für alle API-Endpunkte inkl. OIDC
+- Mobile-Integrationsdokumentation in `documentation/mobile/`
+
+### Geändert
+- API-Routing über `Mojolicious::Plugin::OpenAPI` mit `render(openapi => ...)`
+- Invoices/TimeEntries/HourlyRates/Supplier/Logs/Health Controller auf OpenAPI-Responses umgestellt
+- Dokumentation aktualisiert (API, Auth, OpenAPI-first Architektur)
+- Konfiguration konsolidiert in `config/xbillr.conf`
+
+### Entfernt
+- Veraltete HTML-Dokumente in `documentation/`
+- Doppelte Docker-Kurzbeschreibung
+
 ## [0.3] - 2026-01-07
 
 ### Hinzugefügt

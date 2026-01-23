@@ -19,6 +19,11 @@ docker-compose up -d
 - **Health Check**: http://localhost:3002/api/health
 - **Datenbank**: localhost:3397
 
+## 🧾 API-Dokumentation
+
+- OpenAPI: `backend/openapi.yaml`
+- Bundled Spec: `documentation/api/openapi.bundle.yaml`
+
 ## 🔧 Wichtige Befehle
 
 ```bash

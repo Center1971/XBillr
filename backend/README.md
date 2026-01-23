@@ -55,7 +55,7 @@ export DB_USER="xbillr_user"
 export DB_PASSWORD="xbillr_pass"
 ```
 
-Oder die Datei `xbillr.conf` anpassen.
+Oder die Datei `config/xbillr.conf` anpassen.
 
 ## Starten der Anwendung
 
@@ -115,7 +115,7 @@ Die Anwendung läuft standardmäßig auf `http://localhost:3001`
 backend/
 ├── app.pl                 # Hauptanwendung
 ├── cpanfile               # Abhängigkeiten
-├── xbillr.conf            # Konfigurationsdatei
+├── config/xbillr.conf            # Konfigurationsdatei
 ├── lib/
 │   └── XBillr/
 │       ├── Controller/    # Controller (API-Endpunkte)

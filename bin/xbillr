@@ -170,38 +170,47 @@ backend_start() {
     echo -e "${BLUE}Starting backend (${system})...${NC}"
     cd "$PROJECT_ROOT"
     
-    # Check and stop if already running
-    check_and_stop_backend "$system"
-    
-    local compose_files=$(get_compose_files "$system")
-    
-    # Export environment variables for docker-compose
-    export DB_ROOT_PASSWORD
-    export DB_USER
-    export DB_PASSWORD
-    export DB_PORT
-    export BACKEND_PORT
-    export ALLOWED_ORIGINS
-    
-    # Build if needed
     if [ "$system" = "devel" ]; then
-        $DOCKER_COMPOSE $compose_files build backend
+        # Start backend locally in development mode
+        check_and_stop_backend "$system"
+        cd "$PROJECT_ROOT/backend"
+        mkdir -p log
+        touch log/xbillr.log
+        chmod 664 log/xbillr.log
+        chown "$(id -u)":"$(id -g)" log/xbillr.log 2>/dev/null || true
+        export DB_DSN="dbi:MariaDB:database=xbillr;host=localhost;port=${DB_PORT}"
+        export DB_USER
+        export DB_PASSWORD
+        export ALLOWED_ORIGINS
+        export BACKEND_PORT
+        export PERL5LIB="$PROJECT_ROOT/backend/lib:$PERL5LIB"
+        nohup morbo app.pl -l "http://*:${BACKEND_PORT}" >/tmp/xbillr-backend.log 2>&1 &
+        local pid=$!
+        echo $pid > "$BACKEND_PID_FILE"
+        echo "system=$system" >> "$BACKEND_PID_FILE"
+        echo "started_at=$(date +%s)" >> "$BACKEND_PID_FILE"
+        echo -e "${GREEN}Backend started locally! (PID: $pid)${NC}"
+        echo -e "${YELLOW}Backend logs: tail -f /tmp/xbillr-backend.log${NC}"
+        echo -e "${YELLOW}App logs: tail -f $PROJECT_ROOT/backend/log/xbillr.log${NC}"
+    else
+        # Docker mode (prod)
+        check_and_stop_backend "$system"
+        local compose_files=$(get_compose_files "$system")
+        export DB_ROOT_PASSWORD
+        export DB_USER
+        export DB_PASSWORD
+        export DB_PORT
+        export BACKEND_PORT
+        export ALLOWED_ORIGINS
+        $DOCKER_COMPOSE $compose_files up -d mariadb backend
+        echo "system=$system" > "$BACKEND_PID_FILE"
+        echo "compose_files=$compose_files" >> "$BACKEND_PID_FILE"
+        echo "started_at=$(date +%s)" >> "$BACKEND_PID_FILE"
+        echo -e "${GREEN}Backend started!${NC}"
+        echo -e "${YELLOW}Waiting for services to be healthy...${NC}"
+        sleep 5
+        $DOCKER_COMPOSE $compose_files ps
     fi
-    
-    $DOCKER_COMPOSE $compose_files up -d mariadb backend
-    
-    # Create PID file to track that backend is running
-    # For Docker, we'll use a marker file with container info
-    echo "system=$system" > "$BACKEND_PID_FILE"
-    echo "compose_files=$compose_files" >> "$BACKEND_PID_FILE"
-    echo "started_at=$(date +%s)" >> "$BACKEND_PID_FILE"
-    
-    echo -e "${GREEN}Backend started!${NC}"
-    echo -e "${YELLOW}Waiting for services to be healthy...${NC}"
-    sleep 5
-    
-    # Show status
-    $DOCKER_COMPOSE $compose_files ps
 }
 
 backend_stop() {
@@ -209,25 +218,25 @@ backend_stop() {
     echo -e "${BLUE}Stopping backend (${system})...${NC}"
     cd "$PROJECT_ROOT"
     
-    # Get compose files from PID file if available, otherwise use system
-    local compose_files
-    if [ -f "$BACKEND_PID_FILE" ]; then
-        local saved_system=$(grep "^system=" "$BACKEND_PID_FILE" | cut -d= -f2)
-        if [ -n "$saved_system" ]; then
-            compose_files=$(get_compose_files "$saved_system")
+    if [ "$system" = "devel" ]; then
+        graceful_stop "$BACKEND_PID_FILE" "backend"
+        echo -e "${GREEN}Backend stopped!${NC}"
+    else
+        local compose_files
+        if [ -f "$BACKEND_PID_FILE" ]; then
+            local saved_system=$(grep "^system=" "$BACKEND_PID_FILE" | cut -d= -f2)
+            if [ -n "$saved_system" ]; then
+                compose_files=$(get_compose_files "$saved_system")
+            else
+                compose_files=$(get_compose_files "$system")
+            fi
         else
             compose_files=$(get_compose_files "$system")
         fi
-    else
-        compose_files=$(get_compose_files "$system")
+        $DOCKER_COMPOSE $compose_files stop backend mariadb
+        rm -f "$BACKEND_PID_FILE"
+        echo -e "${GREEN}Backend stopped!${NC}"
     fi
-    
-    $DOCKER_COMPOSE $compose_files stop backend mariadb
-    
-    # Remove PID file
-    rm -f "$BACKEND_PID_FILE"
-    
-    echo -e "${GREEN}Backend stopped!${NC}"
 }
 
 backend_restart() {
@@ -243,21 +252,32 @@ backend_status() {
     echo -e "${BLUE}Backend status (${system}):${NC}"
     cd "$PROJECT_ROOT"
     
-    # Get compose files from PID file if available, otherwise use system
-    local compose_files
-    if [ -f "$BACKEND_PID_FILE" ]; then
-        local saved_system=$(grep "^system=" "$BACKEND_PID_FILE" | cut -d= -f2)
-        if [ -n "$saved_system" ]; then
-            compose_files=$(get_compose_files "$saved_system")
-            echo -e "${YELLOW}Backend was started in '$saved_system' mode${NC}"
+    if [ "$system" = "devel" ]; then
+        if [ -f "$BACKEND_PID_FILE" ]; then
+            local pid=$(head -n1 "$BACKEND_PID_FILE" 2>/dev/null | grep -E '^[0-9]+$' || echo "")
+            if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
+                echo -e "${GREEN}Backend is running locally (PID: $pid)${NC}"
+            else
+                echo -e "${YELLOW}Backend is not running locally${NC}"
+            fi
+        else
+            echo -e "${YELLOW}Backend is not running locally${NC}"
+        fi
+    else
+        local compose_files
+        if [ -f "$BACKEND_PID_FILE" ]; then
+            local saved_system=$(grep "^system=" "$BACKEND_PID_FILE" | cut -d= -f2)
+            if [ -n "$saved_system" ]; then
+                compose_files=$(get_compose_files "$saved_system")
+                echo -e "${YELLOW}Backend was started in '$saved_system' mode${NC}"
+            else
+                compose_files=$(get_compose_files "$system")
+            fi
         else
             compose_files=$(get_compose_files "$system")
         fi
-    else
-        compose_files=$(get_compose_files "$system")
+        $DOCKER_COMPOSE $compose_files ps
     fi
-    
-    $DOCKER_COMPOSE $compose_files ps
 }
 
 backend_logs() {
@@ -265,8 +285,14 @@ backend_logs() {
     echo -e "${BLUE}Backend logs (${system}):${NC}"
     cd "$PROJECT_ROOT"
     
-    local compose_files=$(get_compose_files "$system")
-    $DOCKER_COMPOSE $compose_files logs -f backend
+    if [ "$system" = "devel" ]; then
+        echo -e "${YELLOW}Backend process logs: tail -f /tmp/xbillr-backend.log${NC}"
+        echo -e "${YELLOW}App logs: tail -f $PROJECT_ROOT/backend/log/xbillr.log${NC}"
+        tail -f /tmp/xbillr-backend.log
+    else
+        local compose_files=$(get_compose_files "$system")
+        $DOCKER_COMPOSE $compose_files logs -f backend
+    fi
 }
 
 frontend_start() {

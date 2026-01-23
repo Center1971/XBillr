@@ -15,6 +15,7 @@ sub new {
         smtp_password => $args{smtp_password} || $ENV{SMTP_PASSWORD},
         smtp_from => $args{smtp_from} || $ENV{SMTP_FROM} || 'noreply@xbillr.local',
         smtp_from_name => $args{smtp_from_name} || $ENV{SMTP_FROM_NAME} || 'XBillr',
+        app_url => $args{app_url} || $ENV{APP_URL} || 'http://localhost:3000',
     };
     bless $self, $class;
     return $self;
@@ -52,7 +53,7 @@ sub send_email {
 sub send_login_credentials {
     my ($self, $user, $password, $login_url) = @_;
     
-    $login_url ||= $ENV{APP_URL} || 'http://localhost:3000';
+    $login_url ||= $self->{app_url};
     
     my $subject = 'Ihre XBillr Login-Daten';
     my $body_html = <<"HTML";
@@ -131,7 +132,7 @@ TEXT
 sub send_password_reset {
     my ($self, $user, $reset_token, $reset_url) = @_;
     
-    $reset_url ||= ($ENV{APP_URL} || 'http://localhost:3000') . '/reset-password?token=' . $reset_token;
+    $reset_url ||= $self->{app_url} . '/reset-password?token=' . $reset_token;
     
     my $subject = 'Passwort zurücksetzen - XBillr';
     my $body_html = <<"HTML";

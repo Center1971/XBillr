@@ -24,6 +24,11 @@ docker-compose logs -f backend
 # http://localhost:3002/api/health
 ```
 
+### API-Dokumentation
+
+- OpenAPI: `backend/openapi.yaml`
+- Lokal anzeigen: `/usr/bin/scalar document serve backend/openapi.yaml`
+
 ### Probleme beheben
 
 **Port bereits belegt:**

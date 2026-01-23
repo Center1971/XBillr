@@ -1,0 +1,47 @@
+\begin{theindex}
+
+  \item {backend/app.pl}, \hyperpage{4}
+  \item {backend/lib/Mojolicious/Plugin/SecurityHeaders.pm}, 
+		\hyperpage{4}
+  \item {backend/lib/XBillr/Component/InputValidator.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Component/Security.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Auth.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Customers.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Health.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/HourlyRates.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Invoices.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Logs.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Permissions.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Roles.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Supplier.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/TimeEntries.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Timesheets.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Controller/Users.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Middleware/Auth.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Middleware/SecurityLogging.pm}, 
+		\hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/ActivityLog.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/Customer.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/HourlyRate.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/Invoice.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/InvoiceItem.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/Permission.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/Role.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/RolePermission.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/Supplier.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/TimeEntry.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/Timesheet.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/User.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/UserRole.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/DB/UserSession.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Model/ResultSet.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Service/AuthService.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Service/EmailService.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Service/InvoiceService.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Service/PDFService.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Service/XRechnungService.pm}, \hyperpage{4}
+  \item {backend/lib/XBillr/Version.pm}, \hyperpage{4}
+  \item {backend/scripts/create\_admin.pl}, \hyperpage{4}
+
+\end{theindex}

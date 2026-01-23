@@ -1,0 +1,1393 @@
+openapi: 3.1.0
+info:
+  title: XBillr API
+  version: "0.4"
+  description: >-
+    OpenAPI-first definition for the XBillr REST API. This specification is the
+    single source of truth for web and mobile clients.
+servers:
+  - url: http://localhost:3002
+    description: Local development
+  - url: https://api.example.com
+    description: Production (example)
+
+tags:
+  - name: Auth
+  - name: Health
+  - name: Customers
+  - name: Invoices
+  - name: TimeEntries
+  - name: Timesheets
+  - name: HourlyRates
+  - name: Supplier
+  - name: Logs
+
+security:
+  - bearerAuth: []
+  - oauth2: []
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: []
+      x-mojo-to: XBillr::Controller::Health#check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  version:
+                    type: string
+                  timestamp:
+                    type: integer
+                  database:
+                    type: string
+                  customers:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/auth/oidc/login:
+    get:
+      tags: [Auth]
+      summary: Start OIDC login flow
+      security: []
+      x-mojo-to: XBillr::Controller::Auth#oidc_login
+      parameters:
+        - name: client
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [web, mobile]
+        - name: return_to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to IAM authorization endpoint
+
+  /api/auth/oidc/callback:
+    get:
+      tags: [Auth]
+      summary: OIDC callback for authorization code
+      security: []
+      x-mojo-to: XBillr::Controller::Auth#oidc_callback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to application
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/auth/oidc/logout:
+    post:
+      tags: [Auth]
+      summary: Logout OIDC session
+      security: []
+      x-mojo-to: XBillr::Controller::Auth#oidc_logout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                  message:
+                    type: string
+
+  /api/auth/login:
+    get:
+      tags: [Auth]
+      summary: Initiate OAuth2/OIDC Authorization Code Flow
+      description: |
+        Redirects to Keycloak's authorization endpoint to start the OAuth2/OIDC login flow.
+        After successful authentication, Keycloak redirects to /api/auth/oidc/callback.
+      security: []
+      x-mojo-to: XBillr::Controller::Auth#login
+      parameters:
+        - name: return_to
+          in: query
+          required: false
+          schema:
+            type: string
+          description: URL to return to after successful login
+      responses:
+        '302':
+          description: Redirect to Keycloak authorization endpoint
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (legacy session or OIDC)
+      x-mojo-to: XBillr::Controller::Auth#logout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                  message:
+                    type: string
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      x-mojo-to: XBillr::Controller::Auth#me
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  firstName:
+                    type: string
+                  lastName:
+                    type: string
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                  permissions:
+                    type: array
+                    items:
+                      type: string
+                  groups:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      x-mojo-to: XBillr::Controller::Customers#list
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Customer'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      tags: [Customers]
+      summary: Create customer
+      x-mojo-to: XBillr::Controller::Customers#create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/customers/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Customers]
+      summary: Get customer
+      x-mojo-to: XBillr::Controller::Customers#get
+      responses:
+        '200':
+          description: Customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [Customers]
+      summary: Update customer
+      x-mojo-to: XBillr::Controller::Customers#update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [Customers]
+      summary: Delete customer
+      x-mojo-to: XBillr::Controller::Customers#delete
+      responses:
+        '200':
+          description: Customer deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/open-posts:
+    get:
+      tags: [Invoices]
+      summary: List open posts
+      x-mojo-to: XBillr::Controller::Invoices#open_posts
+      responses:
+        '200':
+          description: Open posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    invoiceNumber:
+                      type: string
+                    customerId:
+                      type: string
+                    customerName:
+                      type: string
+                    createdAt:
+                      type: string
+                    total:
+                      type: number
+                    dueDate:
+                      type: string
+                    paymentTerms:
+                      type: integer
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      x-mojo-to: XBillr::Controller::Invoices#list
+      responses:
+        '200':
+          description: Invoice list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      tags: [Invoices]
+      summary: Create invoice
+      x-mojo-to: XBillr::Controller::Invoices#create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                dateFrom:
+                  type: string
+                dateTo:
+                  type: string
+                taxRate:
+                  type: number
+                taxType:
+                  type: string
+                paymentTerms:
+                  type: integer
+                includeTimesheet:
+                  type: integer
+      responses:
+        '201':
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/archived:
+    get:
+      tags: [Invoices]
+      summary: List archived invoices
+      x-mojo-to: XBillr::Controller::Invoices#list_archived
+      responses:
+        '200':
+          description: Archived invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/archived/{id}/duplicate:
+    post:
+      tags: [Invoices]
+      summary: Duplicate archived invoice
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      x-mojo-to: XBillr::Controller::Invoices#duplicate
+      responses:
+        '200':
+          description: Invoice duplicated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Invoices]
+      summary: Get invoice
+      x-mojo-to: XBillr::Controller::Invoices#get
+      responses:
+        '200':
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Invoice'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InvoiceItem'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [Invoices]
+      summary: Update invoice
+      x-mojo-to: XBillr::Controller::Invoices#update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceUpdate'
+      responses:
+        '200':
+          description: Invoice updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [Invoices]
+      summary: Delete invoice
+      x-mojo-to: XBillr::Controller::Invoices#delete
+      responses:
+        '200':
+          description: Invoice deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/{id}/xml:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Invoices]
+      summary: Export invoice as XML
+      x-mojo-to: XBillr::Controller::Invoices#xml
+      responses:
+        '200':
+          description: XML export
+          content:
+            application/xml:
+              schema:
+                type: string
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/{id}/pdf:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+      - name: include_timesheet
+        in: query
+        required: false
+        schema:
+          type: integer
+    get:
+      tags: [Invoices]
+      summary: Export invoice as PDF
+      x-mojo-to: XBillr::Controller::Invoices#pdf
+      responses:
+        '200':
+          description: PDF export
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/{id}/correct:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Invoices]
+      summary: Create corrected invoice
+      x-mojo-to: XBillr::Controller::Invoices#correct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                dateFrom:
+                  type: string
+                dateTo:
+                  type: string
+                taxRate:
+                  type: number
+                taxType:
+                  type: string
+                paymentTerms:
+                  type: integer
+      responses:
+        '201':
+          description: Correction invoice created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  invoiceNumber:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/{id}/archive:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Invoices]
+      summary: Archive invoice
+      x-mojo-to: XBillr::Controller::Invoices#archive
+      responses:
+        '200':
+          description: Invoice archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/invoices/{id}/unarchive:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Invoices]
+      summary: Unarchive invoice
+      x-mojo-to: XBillr::Controller::Invoices#unarchive
+      responses:
+        '200':
+          description: Invoice unarchived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/time-entries/week/{year}/{week}:
+    get:
+      tags: [TimeEntries]
+      summary: List time entries by week
+      x-mojo-to: XBillr::Controller::TimeEntries#get_by_week
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: week
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Time entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeEntry'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/time-entries/month/{year}/{month}:
+    get:
+      tags: [TimeEntries]
+      summary: List time entries by month
+      x-mojo-to: XBillr::Controller::TimeEntries#get_by_month
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Time entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeEntry'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/time-entries/timesheet/{customer_id}/pdf:
+    get:
+      tags: [TimeEntries]
+      summary: Export timesheet PDF
+      x-mojo-to: XBillr::Controller::TimeEntries#timesheet_pdf
+      parameters:
+        - name: customer_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date_to
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: archive
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Timesheet PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/time-entries/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [TimeEntries]
+      summary: Get time entry
+      x-mojo-to: XBillr::Controller::TimeEntries#get
+      responses:
+        '200':
+          description: Time entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntry'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [TimeEntries]
+      summary: Update time entry
+      x-mojo-to: XBillr::Controller::TimeEntries#update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeEntry'
+      responses:
+        '200':
+          description: Time entry updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntry'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [TimeEntries]
+      summary: Delete time entry
+      x-mojo-to: XBillr::Controller::TimeEntries#delete
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/time-entries:
+    post:
+      tags: [TimeEntries]
+      summary: Create time entry
+      x-mojo-to: XBillr::Controller::TimeEntries#create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeEntry'
+      responses:
+        '201':
+          description: Time entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeEntry'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/timesheets:
+    get:
+      tags: [Timesheets]
+      summary: List timesheets
+      x-mojo-to: XBillr::Controller::Timesheets#list
+      parameters:
+        - name: archived
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Timesheets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Timesheet'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/timesheets/{id}/pdf:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Timesheets]
+      summary: Download timesheet PDF
+      x-mojo-to: XBillr::Controller::Timesheets#pdf
+      responses:
+        '200':
+          description: Timesheet PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/timesheets/{id}/archive:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Timesheets]
+      summary: Archive timesheet
+      x-mojo-to: XBillr::Controller::Timesheets#archive
+      responses:
+        '200':
+          description: Timesheet archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/timesheets/{id}/unarchive:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Timesheets]
+      summary: Unarchive timesheet
+      x-mojo-to: XBillr::Controller::Timesheets#unarchive
+      responses:
+        '200':
+          description: Timesheet unarchived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/timesheets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Timesheets]
+      summary: Delete timesheet
+      x-mojo-to: XBillr::Controller::Timesheets#delete
+      responses:
+        '200':
+          description: Timesheet deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/hourly-rates/customer/{customerId}:
+    get:
+      tags: [HourlyRates]
+      summary: List hourly rates for customer
+      x-mojo-to: XBillr::Controller::HourlyRates#get_by_customer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Hourly rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HourlyRate'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/hourly-rates:
+    post:
+      tags: [HourlyRates]
+      summary: Create hourly rate
+      x-mojo-to: XBillr::Controller::HourlyRates#create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HourlyRate'
+      responses:
+        '201':
+          description: Hourly rate created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HourlyRate'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/hourly-rates/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [HourlyRates]
+      summary: Get hourly rate
+      x-mojo-to: XBillr::Controller::HourlyRates#get
+      responses:
+        '200':
+          description: Hourly rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HourlyRate'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [HourlyRates]
+      summary: Update hourly rate
+      x-mojo-to: XBillr::Controller::HourlyRates#update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HourlyRate'
+      responses:
+        '200':
+          description: Hourly rate updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HourlyRate'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [HourlyRates]
+      summary: Delete hourly rate
+      x-mojo-to: XBillr::Controller::HourlyRates#delete
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/supplier:
+    get:
+      tags: [Supplier]
+      summary: Get supplier
+      x-mojo-to: XBillr::Controller::Supplier#get
+      responses:
+        '200':
+          description: Supplier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      tags: [Supplier]
+      summary: Create supplier
+      x-mojo-to: XBillr::Controller::Supplier#create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Supplier'
+      responses:
+        '201':
+          description: Supplier created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [Supplier]
+      summary: Update supplier
+      x-mojo-to: XBillr::Controller::Supplier#update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Supplier'
+      responses:
+        '200':
+          description: Supplier updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /api/logs:
+    get:
+      tags: [Logs]
+      summary: List logs
+      x-mojo-to: XBillr::Controller::Logs#list
+      responses:
+        '200':
+          description: Log list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LogEntry'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://keycloak.hurin.com/realms/xbillr/protocol/openid-connect/auth
+          tokenUrl: https://keycloak.hurin.com/realms/xbillr/protocol/openid-connect/token
+          scopes:
+            openid: OpenID Connect
+            profile: User profile
+            email: User email
+      description: >-
+        PKCE is required for mobile clients. Use S256 code challenge.
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    ErrorResponse:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+        company:
+          type: string
+          nullable: true
+        name:
+          type: string
+        address:
+          type: string
+        zipCode:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        email:
+          type: string
+          nullable: true
+        paymentTerms:
+          type: integer
+          nullable: true
+        defaultHourlyRate:
+          type: number
+          nullable: true
+        defaultDailyRate:
+          type: number
+          nullable: true
+        taxRate:
+          type: number
+          nullable: true
+        reverseCharge:
+          type: boolean
+      required:
+        - name
+        - address
+        - zipCode
+        - city
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        invoiceNumber:
+          type: string
+        customerId:
+          type: string
+        customerName:
+          type: string
+          nullable: true
+        dateFrom:
+          type: string
+        dateTo:
+          type: string
+        subtotal:
+          type: number
+        taxRate:
+          type: number
+        taxAmount:
+          type: number
+        total:
+          type: number
+        taxType:
+          type: string
+        status:
+          type: string
+        paymentTerms:
+          type: integer
+          nullable: true
+        dueDate:
+          type: string
+          nullable: true
+        xrechnungXml:
+          type: string
+          nullable: true
+        archived:
+          type: integer
+        archivedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - customerId
+
+    InvoiceUpdate:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+        customerId:
+          type: string
+        dateFrom:
+          type: string
+        dateTo:
+          type: string
+        subtotal:
+          type: number
+        taxRate:
+          type: number
+        taxAmount:
+          type: number
+        total:
+          type: number
+        taxType:
+          type: string
+        status:
+          type: string
+        paymentTerms:
+          type: integer
+        dueDate:
+          type: string
+
+    InvoiceItem:
+      type: object
+      properties:
+        id:
+          type: string
+        invoiceId:
+          type: string
+        timeEntryId:
+          type: string
+        description:
+          type: string
+        hours:
+          type: number
+        rate:
+          type: number
+        amount:
+          type: number
+        rateType:
+          type: string
+
+    TimeEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        hourlyRateId:
+          type: string
+        date:
+          type: string
+        hours:
+          type: number
+        description:
+          type: string
+        week:
+          type: integer
+        year:
+          type: integer
+        createdAt:
+          type: string
+
+    HourlyRate:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        rate:
+          type: number
+        rateType:
+          type: string
+        description:
+          type: string
+        validFrom:
+          type: string
+        validTo:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        zipCode:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        taxId:
+          type: string
+          nullable: true
+        vatId:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        bankAccount:
+          type: string
+          nullable: true
+        bankName:
+          type: string
+          nullable: true
+        iban:
+          type: string
+          nullable: true
+        bic:
+          type: string
+          nullable: true
+        defaultTaxRate:
+          type: number
+          nullable: true
+
+    Timesheet:
+      type: object
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        customerName:
+          type: string
+        dateFrom:
+          type: string
+        dateTo:
+          type: string
+        description:
+          type: string
+          nullable: true
+        archived:
+          type: integer
+        archivedAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+
+    LogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: string
+        details:
+          type: string
+        createdAt:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+            - type: object

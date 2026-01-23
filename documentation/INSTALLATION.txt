@@ -35,6 +35,12 @@ BACKEND INSTALLATION:
 
 Das Backend läuft auf http://localhost:3002
 
+API & AUTHENTIFIZIERUNG:
+------------------------
+- OpenAPI Spezifikation: backend/openapi.yaml
+- API Dokumentation: documentation/api/openapi.bundle.yaml
+- OIDC Konfiguration: config/xbillr.conf (iam-Block)
+
 FRONTEND INSTALLATION (falls vorhanden):
 -----------------------------------------
 1. Node.js 18+ installieren

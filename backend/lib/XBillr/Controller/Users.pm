@@ -123,7 +123,8 @@ sub create {
         
         # Sende E-Mail mit Login-Daten (falls angefordert)
         if ($data->{sendEmail}) {
-            my $email_service = XBillr::Service::EmailService->new;
+            my $email_cfg = $c->app->config->{email} || {};
+            my $email_service = XBillr::Service::EmailService->new(%$email_cfg);
             my $email_result = $email_service->send_login_credentials($user, $data->{password});
             if (!$email_result->{success}) {
                 $c->app->log->warn("Failed to send login email: " . ($email_result->{error} || 'Unknown error'));
@@ -290,7 +291,8 @@ sub send_credentials {
         });
         
         # Sende E-Mail
-        my $email_service = XBillr::Service::EmailService->new;
+        my $email_cfg = $c->app->config->{email} || {};
+        my $email_service = XBillr::Service::EmailService->new(%$email_cfg);
         my $email_result = $email_service->send_login_credentials($user, $password);
         
         if ($email_result->{success}) {

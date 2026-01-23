@@ -48,6 +48,11 @@ docker-compose logs -f mariadb
 - **Health Check**: http://localhost:3002/api/health
 - **Port**: 3002 (konfigurierbar über `BACKEND_PORT`)
 
+**API-Dokumentation & Auth**
+- OpenAPI: `backend/openapi.yaml`
+- Bundled Spec: `documentation/api/openapi.bundle.yaml`
+- OIDC-Konfiguration: `config/xbillr.conf` → `iam`
+
 ### MariaDB
 - **Port**: 3307 (konfigurierbar über `DB_PORT`)
 - **Datenbank**: xbillr

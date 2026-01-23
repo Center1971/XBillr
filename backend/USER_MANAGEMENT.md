@@ -4,6 +4,22 @@
 
 Die Benutzerverwaltung ermöglicht es Administratoren, Benutzer zu erstellen, zu verwalten und ihnen Rollen und Rechte zuzuweisen.
 
+## Tenant-Modell
+
+Ein Tenant ist ein Kunde von XBillr: entweder ein Unternehmen oder ein Freelancer (Person).
+Ein Tenant hat:
+- Name (Unternehmensname oder Personenname)
+- Adresse
+- Kontaktdaten (E-Mail, Mobilnummer, optional Telefon, optional Webadresse)
+
+Ein Tenant kann mehrere Benutzer haben und muss mindestens einen Tenant Admin besitzen.
+
+## IAM Gruppen
+
+Tenants werden im IAM als Gruppen verwaltet und im JWT als `groups` geliefert.
+Die Gruppenkennzeichnung wird serverseitig genutzt, um die Mandantenzuordnung zu
+ermitteln.
+
 ## Features
 
 - **Benutzerverwaltung**: Erstellen, Bearbeiten und Löschen von Benutzern
@@ -33,16 +49,18 @@ Standard-Passwort: `admin123`
 
 ### 3. E-Mail-Konfiguration (optional)
 
-Setzen Sie die folgenden Umgebungsvariablen für den E-Mail-Versand:
+Konfigurieren Sie den E-Mail-Versand in `config/xbillr.conf`:
 
-```bash
-export SMTP_HOST=smtp.example.com
-export SMTP_PORT=587
-export SMTP_USER=your-email@example.com
-export SMTP_PASSWORD=your-password
-export SMTP_FROM=noreply@xbillr.local
-export SMTP_FROM_NAME="XBillr"
-export APP_URL=http://localhost:3000
+```
+email => {
+  smtp_host => 'smtp.example.com',
+  smtp_port => 587,
+  smtp_user => 'your-email@example.com',
+  smtp_password => 'your-password',
+  smtp_from => 'noreply@xbillr.local',
+  smtp_from_name => 'XBillr',
+  app_url => 'http://localhost:3000',
+},
 ```
 
 ## Standard-Rollen
@@ -51,6 +69,10 @@ export APP_URL=http://localhost:3000
 - Hat alle Rechte
 - Kann Benutzer und Rollen verwalten
 - Kann alle Ressourcen erstellen, bearbeiten und löschen
+
+### Tenant Admin
+- Administrator für einen XBillr-Tenant
+- Kann Tenant-Daten und Benutzer verwalten
 
 ### User
 - Kann Kunden erstellen und anzeigen
@@ -61,6 +83,13 @@ export APP_URL=http://localhost:3000
 ### Viewer
 - Nur Lese-Zugriff auf alle Ressourcen
 - Kann keine Daten ändern
+
+## IAM Rollen (Keycloak)
+
+- Admin = `XBillr-Admin`
+- Tenant Admin = `XBillr-Tenant-Admin`
+- User = `XBillr-User`
+- Viewer = `XBillr-Viewer`
 
 ## API-Endpunkte
 

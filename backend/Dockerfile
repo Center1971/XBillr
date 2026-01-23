@@ -8,6 +8,9 @@ LABEL version="0.2"
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
+# Unterdrücke tar-Warnungen für unbekannte Header (z. B. macOS xattr)
+ENV TAR_OPTIONS="--warning=no-unknown-keyword"
+
 # System-Abhängigkeiten installieren
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -22,6 +25,7 @@ COPY cpanfile ./
 # Installiere zuerst Mojolicious (enthält bereits Test::Mojo)
 # Erstelle temporäre cpanfile ohne Test-Abhängigkeiten für Produktions-Build
 RUN cpanm --notest Mojolicious && \
+    cpanm --notest CryptX Crypt::PK::RSA Crypt::JWT && \
     sed '/^on '\''test'\'' => sub {/,/^};$/d' cpanfile > cpanfile.prod && \
     cpanm --installdeps --notest --cpanfile cpanfile.prod . && \
     rm -rf /root/.cpanm /tmp/* cpanfile.prod

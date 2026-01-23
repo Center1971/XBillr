@@ -1,6 +1,6 @@
 # XBillr
 
-**Version 0.2**
+**Version 0.4**
 
 Eine vollständige Rechnungssoftware nach dem XRechnung-Standard des IT-Planungsrats für Freelancer.
 
@@ -19,6 +19,7 @@ Eine vollständige Rechnungssoftware nach dem XRechnung-Standard des IT-Planungs
 - **Frontend**: React + TypeScript + Material-UI
 - **Datenbank**: MariaDB
 - **XRechnung**: XML-Generierung nach IT-Planungsrat Standard (XRechnung 3.0)
+- **API**: OpenAPI 3.1 + OAuth2/OIDC (Keycloak)
 
 ## Installation
 
@@ -41,6 +42,12 @@ perl app.pl daemon
 ```
 
 Das Backend läuft standardmäßig auf `http://localhost:3002`
+
+### API-Dokumentation
+
+- OpenAPI-Spezifikation: `backend/openapi.yaml`
+- Gebündelte Dokumentation: `documentation/api/openapi.bundle.yaml`
+- Lokal anzeigen: `/usr/bin/scalar document serve backend/openapi.yaml`
 
 ### Frontend Setup
 
@@ -109,3 +116,7 @@ Die Anwendung ist vollständig responsive und kann auf mobilen Geräten (iOS/And
 
 MIT
 
+## Entwicklerdokumentation
+
+- Doxygen-Konfiguration: `documentation/Doxyfile`
+- LaTeX-Ausgabe: `documentation/doxygen/latex` (nach Doxygen-Lauf)

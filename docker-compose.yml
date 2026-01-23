@@ -41,7 +41,7 @@ services:
       - "${BACKEND_PORT:-3002}:3002"
     volumes:
       - ./backend/log:/app/log
-      - ./backend/xbillr.conf:/app/xbillr.conf:ro
+      - ./config/xbillr.conf:/app/config/xbillr.conf:ro
     healthcheck:
       test: ["CMD", "perl", "-e", "use LWP::Simple; exit(get('http://127.0.0.1:3002/api/health') ? 0 : 1)"]
       interval: 30s

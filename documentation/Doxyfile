@@ -1,0 +1,11 @@
+PROJECT_NAME           = XBillr
+OUTPUT_DIRECTORY       = documentation/doxygen
+INPUT                  = backend/lib backend/app.pl backend/scripts frontend
+FILE_PATTERNS          = *.pm *.pl *.js *.ts *.tsx *.md
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+QUIET                  = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = YES
+LATEX_OUTPUT           = latex
+HAVE_DOT               = NO

@@ -1,0 +1,38 @@
+# Configuration for OpenAPI to Postman conversion
+# This file is used by openapi-to-postman-complete to generate the Postman collection
+
+# Collection metadata
+collection:
+  name: "XBillr API"
+  description: "Postman collection for XBillr REST API, generated from OpenAPI 3.1 specification"
+
+# Request configuration
+requests:
+  # Include example values from OpenAPI spec
+  includeExamples: true
+  # Generate request body examples
+  generateBody: true
+
+# Response configuration
+responses:
+  # Include example responses
+  includeExamples: true
+
+# Folder organization
+folders:
+  # Organize by tags (from OpenAPI tags)
+  organizeByTags: true
+  # Include request descriptions
+  includeDescriptions: true
+
+# Variables
+variables:
+  # Keep existing variables when merging
+  preserveExisting: true
+
+# Security
+security:
+  # Include security schemes
+  includeSecurity: true
+  # Generate auth examples
+  generateAuthExamples: true

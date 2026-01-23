@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XBillr - Rechnungsverwaltung</title>
+    <link rel="icon" type="image/png" href="images/xbillr_favicon.png">
     <!-- Material Design Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <!-- showTab muss VOR dem HTML definiert werden, das onclick Handler verwendet -->
@@ -1126,7 +1127,10 @@
     <!-- Material Design Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h1>XBillr</h1>
+            <picture>
+                <source srcset="images/xbillr_logo.svg" type="image/svg+xml">
+                <img src="images/xbillr_logo.png" alt="XBillr" style="max-width: 100%; height: auto; max-height: 40px;">
+            </picture>
         </div>
         <div class="sidebar-menu">
             <div class="menu-item active" data-tab="overview" onclick="showTab('overview')" style="cursor: pointer;">
@@ -1846,24 +1850,15 @@
     <script>
         const API_BASE = 'http://localhost:3002/api';
         
-        // Authentifizierung prüfen
+        // Authentifizierung prüfen (Session-based authentication mit Cookies)
         (function() {
-            const sessionToken = localStorage.getItem('sessionToken');
-            if (!sessionToken) {
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            // Validiere Session
+            // Validiere Session über Cookie (keine localStorage Tokens mehr)
             fetch(`${API_BASE}/auth/me`, {
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`
-                }
+                credentials: 'include' // Important: include session cookies
             })
             .then(response => {
                 if (!response.ok) {
                     console.log('Session validation failed, redirecting to login');
-                    localStorage.removeItem('sessionToken');
                     localStorage.removeItem('user');
                     window.location.href = 'login.html';
                     return null;
@@ -1885,7 +1880,6 @@
             })
             .catch(error => {
                 console.error('Session validation error:', error);
-                localStorage.removeItem('sessionToken');
                 localStorage.removeItem('user');
                 window.location.href = 'login.html';
             });
@@ -1893,29 +1887,26 @@
         
         // Logout-Funktion
         function logout() {
-            const sessionToken = localStorage.getItem('sessionToken');
-            if (sessionToken) {
-                fetch(`${API_BASE}/auth/logout`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${sessionToken}`
-                    }
-                }).catch(() => {});
-            }
-            localStorage.removeItem('sessionToken');
+            fetch(`${API_BASE}/auth/logout`, {
+                method: 'POST',
+                credentials: 'include' // Include session cookies
+            }).catch(() => {});
+            
             localStorage.removeItem('user');
             window.location.href = 'login.html';
         }
         
-        // Helper-Funktion für authentifizierte Requests
+        // Helper-Funktion für authentifizierte Requests (Session-based)
         function authenticatedFetch(url, options = {}) {
-            const sessionToken = localStorage.getItem('sessionToken');
             const headers = {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${sessionToken}`,
                 ...options.headers
             };
-            return fetch(url, { ...options, headers });
+            return fetch(url, { 
+                ...options, 
+                headers,
+                credentials: 'include' // Always include session cookies
+            });
         }
         
         // showTab ist bereits im <head> definiert, hier nur nochmal sicherstellen

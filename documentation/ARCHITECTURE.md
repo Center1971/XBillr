@@ -4,6 +4,12 @@
 
 XBillr ist eine vollständige Rechnungssoftware nach dem XRechnung-Standard für Freelancer. Das System besteht aus einem Perl/Mojolicious Backend und einem React Frontend.
 
+## API & Sicherheit
+
+- **OpenAPI-first**: `backend/openapi.yaml` ist die Quelle der Wahrheit für Clients und Routing.
+- **OpenAPI-Validierung**: Mojolicious nutzt `Mojolicious::Plugin::OpenAPI` für Request/Response-Validierung.
+- **OAuth2/OIDC**: Zugriff über JWT Bearer Tokens (Keycloak), Rollen aus `resource_access`.
+
 ## Systemarchitektur
 
 ```
@@ -272,7 +278,7 @@ xbillr/
 ├── backend/
 │   ├── app.pl                 # Hauptanwendung
 │   ├── cpanfile               # Abhängigkeiten
-│   ├── xbillr.conf            # Konfiguration
+│   ├── config/xbillr.conf            # Konfiguration
 │   ├── lib/
 │   │   └── XBillr/
 │   │       ├── Controller/    # API-Controller
