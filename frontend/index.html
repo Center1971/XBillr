@@ -1848,10 +1848,58 @@
     </script>
     
     <script>
-        const API_BASE = 'http://localhost:3002/api';
+        // Global config loaded from backend
+        let API_BASE = '/api'; // Default fallback (relative path)
+        let appConfig = null;
+        
+        // Detect development mode: frontend on :8082, backend on :3002
+        function isDevelopmentMode() {
+            return window.location.port === '8082' || window.location.hostname === 'localhost';
+        }
+        
+        // Get config endpoint URL (handles dev vs prod)
+        function getConfigUrl() {
+            if (isDevelopmentMode() && window.location.port === '8082') {
+                // Development: frontend on :8082, backend on :3002
+                return 'http://localhost:3002/api/config';
+            }
+            // Production: use relative path (reverse proxy handles routing)
+            return '/api/config';
+        }
+        
+        // Load configuration from backend
+        async function loadConfig() {
+            try {
+                const configUrl = getConfigUrl();
+                console.log('Loading config from:', configUrl);
+                const response = await fetch(configUrl);
+                if (response.ok) {
+                    appConfig = await response.json();
+                    API_BASE = appConfig.apiBaseUrl || '/api';
+                    console.log('Loaded config:', { apiBaseUrl: API_BASE });
+                } else {
+                    console.warn('Config endpoint returned:', response.status);
+                    // Fallback for development
+                    if (isDevelopmentMode() && window.location.port === '8082') {
+                        API_BASE = 'http://localhost:3002/api';
+                        console.log('Using development fallback:', API_BASE);
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to load config:', error);
+                // Fallback for development
+                if (isDevelopmentMode() && window.location.port === '8082') {
+                    API_BASE = 'http://localhost:3002/api';
+                    console.log('Using development fallback:', API_BASE);
+                }
+            }
+        }
         
         // Authentifizierung prüfen (Session-based authentication mit Cookies)
-        (function() {
+        (async function() {
+            // Load config first
+            await loadConfig();
+            
             // Validiere Session über Cookie (keine localStorage Tokens mehr)
             fetch(`${API_BASE}/auth/me`, {
                 credentials: 'include' // Important: include session cookies

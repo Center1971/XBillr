@@ -147,7 +147,52 @@
     </div>
     
     <script>
-        const API_BASE = 'http://localhost:3002/api';
+        // Global config loaded from backend
+        let API_BASE = '/api'; // Default fallback (relative path)
+        let appConfig = null;
+        
+        // Detect development mode: frontend on :8082, backend on :3002
+        function isDevelopmentMode() {
+            return window.location.port === '8082' || window.location.hostname === 'localhost';
+        }
+        
+        // Get config endpoint URL (handles dev vs prod)
+        function getConfigUrl() {
+            if (isDevelopmentMode() && window.location.port === '8082') {
+                // Development: frontend on :8082, backend on :3002
+                return 'http://localhost:3002/api/config';
+            }
+            // Production: use relative path (reverse proxy handles routing)
+            return '/api/config';
+        }
+        
+        // Load configuration from backend
+        async function loadConfig() {
+            try {
+                const configUrl = getConfigUrl();
+                console.log('Loading config from:', configUrl);
+                const response = await fetch(configUrl);
+                if (response.ok) {
+                    appConfig = await response.json();
+                    API_BASE = appConfig.apiBaseUrl || '/api';
+                    console.log('Loaded config:', { apiBaseUrl: API_BASE });
+                } else {
+                    console.warn('Config endpoint returned:', response.status);
+                    // Fallback for development
+                    if (isDevelopmentMode() && window.location.port === '8082') {
+                        API_BASE = 'http://localhost:3002/api';
+                        console.log('Using development fallback:', API_BASE);
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to load config:', error);
+                // Fallback for development
+                if (isDevelopmentMode() && window.location.port === '8082') {
+                    API_BASE = 'http://localhost:3002/api';
+                    console.log('Using development fallback:', API_BASE);
+                }
+            }
+        }
         
         // Check if already logged in by testing the session
         async function checkSession() {
@@ -179,8 +224,14 @@
             window.location.href = `${API_BASE}/auth/login?return_to=${encodeURIComponent(returnTo)}`;
         }
         
-        // Check for existing session on page load
-        checkSession();
+        // Initialize app: load config, then check session
+        async function init() {
+            await loadConfig();
+            await checkSession();
+        }
+        
+        // Start initialization on page load
+        init();
     </script>
 </body>
 </html>

@@ -15,6 +15,7 @@ use UUID::Tiny ':std';
 # Controller explizit laden
 use XBillr::Controller::Health;
 use XBillr::Controller::Auth;
+use XBillr::Controller::Config;
 use XBillr::Controller::Users;
 use XBillr::Controller::Roles;
 use XBillr::Controller::Permissions;
@@ -48,6 +49,7 @@ $r->get('/api/auth/oidc/callback')->to('auth#oidc_callback');
 $r->post('/api/auth/logout')->to('auth#logout');
 $r->get('/api/auth/me')->to('auth#me');
 $r->get('/api/health')->to('health#check');
+$r->get('/api/config')->to('config#frontend');
 
 # Load OpenAPI spec for documentation ONLY (disable route generation)
 # We'll register routes manually to avoid the "Route without action" issue
@@ -229,10 +231,11 @@ hook before_dispatch => sub {
         }
     }
 
-    # OIDC/Session-Auth für API-Routen (außer Health und Auth-Login/Logout)
+    # OIDC/Session-Auth für API-Routen (außer Health, Config und Auth-Login/Logout)
     my $path = $c->req->url->path->to_string;
     if ($path =~ m{^/api} && $c->req->method ne 'OPTIONS') {
         return if $path eq '/api/health';
+        return if $path eq '/api/config';
         return if $path eq '/api/auth/login';
         return if $path eq '/api/auth/logout';
         return if $path eq '/api/auth/oidc/login';

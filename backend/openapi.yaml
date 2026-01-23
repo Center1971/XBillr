@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: XBillr API
-  version: "0.4"
+  version: "0.5"
   description: >-
     OpenAPI-first definition for the XBillr REST API. This specification is the
     single source of truth for web and mobile clients.
@@ -13,6 +13,7 @@ servers:
 
 tags:
   - name: Auth
+  - name: Config
   - name: Health
   - name: Customers
   - name: Invoices
@@ -53,6 +54,38 @@ paths:
                     type: integer
         '500':
           $ref: '#/components/responses/ErrorResponse'
+
+  /api/config:
+    get:
+      tags: [Config]
+      summary: Get frontend configuration
+      description: Returns configuration values needed by the frontend (API base URL, app name, version, etc.)
+      security: []
+      x-mojo-to: XBillr::Controller::Config#frontend
+      responses:
+        '200':
+          description: Configuration values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apiBaseUrl:
+                    type: string
+                    description: Base URL for API calls
+                    example: /api
+                  appName:
+                    type: string
+                    description: Application name
+                    example: XBillr
+                  appVersion:
+                    type: string
+                    description: Application version
+                    example: 0.5
+                  frontendUrl:
+                    type: string
+                    description: Frontend base URL
+                    example: http://localhost:8082
 
   /api/auth/oidc/login:
     get:

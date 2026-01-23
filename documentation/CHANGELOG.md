@@ -15,6 +15,10 @@ Alle wichtigen Änderungen an XBillr werden in dieser Datei dokumentiert.
 - **Auto-Provisioning**: Optionale automatische User-Erstellung aus IAM (deaktiviert per default)
 - **Frontend OAuth**: Login-Button für Keycloak-Redirect statt Passwort-Form
 - **Documentation**: OAUTH2_IMPLEMENTATION.md mit vollständiger Flow-Dokumentation
+- **Config Endpoint**: `/api/config` liefert Frontend-Konfiguration (API Base URL, App-Name, Version)
+  - Konfigurierbare `api_base_url` in `config/xbillr.conf` (Sektion `frontend`)
+  - Dynamisches Laden der Config in allen Frontend-Dateien
+  - Unterstützt relative Pfade (`/api`) und absolute URLs für verschiedene Umgebungen
 
 ### Geändert
 - **Authentifizierung**: Vollständiger Wechsel von Password Grant zu Authorization Code Flow

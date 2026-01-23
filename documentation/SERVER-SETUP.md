@@ -71,7 +71,20 @@ iam => {
     },
   },
 },
+
+# Frontend Configuration
+frontend => {
+  # API Base URL for frontend (use relative path '/api' for reverse proxy)
+  api_base_url => '/api',  # or 'http://localhost:3002/api' for direct access
+  app_name => 'XBillr',
+  app_version => '0.5',
+},
 ```
+
+**Note**: The `api_base_url` in the `frontend` section is served to the frontend via `/api/config` endpoint:
+- **Development (no reverse proxy)**: Use `'http://localhost:3002/api'` or keep `'/api'` with CORS headers
+- **Production (with reverse proxy)**: Use `'/api'` (relative path) - recommended!
+- Frontend dynamically loads this config on page load
 
 ### 5. Install Perl Dependencies
 
@@ -170,7 +183,7 @@ Edit `config/xbillr.conf`:
     clients => {
       web => {
         client_id => 'xbillr-web-prod',
-        redirect_uri => 'https://api.yourdomain.com/api/auth/oidc/callback',
+        redirect_uri => 'https://www.xbillr.eu/api/auth/oidc/callback',
         audience => 'xbillr-web-prod',
         client_secret => 'SECURE_CLIENT_SECRET',
         # OR use private_key_jwt:
@@ -183,6 +196,13 @@ Edit `config/xbillr.conf`:
         pkce_required => 1,
       },
     },
+  },
+  
+  frontend => {
+    # API Base URL - use relative path with reverse proxy
+    api_base_url => '/api',  # RECOMMENDED for production with reverse proxy
+    app_name => 'XBillr',
+    app_version => '0.5',
   },
   
   email => {
