@@ -105,7 +105,7 @@ echo ""
 
 echo "🎨 Frontend Updates"
 echo "------------------"
-if grep -q "Mit Keycloak anmelden" frontend/login.html; then
+if grep -q "Bei SME Tools anmelden" frontend/login.html; then
     echo -e "${GREEN}✓${NC} Keycloak login button present"
 else
     echo -e "${RED}✗${NC} Keycloak login button missing"

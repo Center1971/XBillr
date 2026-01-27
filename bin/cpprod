@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Copy project files to production directory using rsync
+# Usage: cpprod [destination]
+#   destination: Target directory (default: /usr/local/data/XBillr)
+
+# Get the script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Default destination
+DEST_DIR="${1:-/usr/local/data/XBillr}"
+
+# Ensure destination is an absolute path
+if [[ ! "$DEST_DIR" =~ ^/ ]]; then
+    DEST_DIR="$(cd "$DEST_DIR" 2>/dev/null && pwd || echo "$(pwd)/$DEST_DIR")"
+fi
+
+echo "Copying project files to: $DEST_DIR"
+echo "Source: $PROJECT_ROOT"
+echo ""
+
+# Create destination directory if it doesn't exist
+mkdir -p "$DEST_DIR"
+
+# Use rsync to copy files
+# Exclude common development files and directories
+rsync -av \
+    --exclude='.git' \
+    --exclude='.gitignore' \
+    --exclude='node_modules' \
+    --exclude='dist' \
+    --exclude='logs' \
+    --exclude='*.log' \
+    --exclude='.backend.pid' \
+    --exclude='.frontend.pid' \
+    --exclude='*.md' \
+    --exclude='backup_*.sql' \
+    --exclude='download' \
+    --exclude='cookies.txt' \
+    --exclude='data' \
+    --exclude='.cursorignore' \
+    --exclude='.vscode' \
+    --exclude='.idea' \
+    --exclude='*.swp' \
+    --exclude='*.swo' \
+    --exclude='*~' \
+    --exclude='.DS_Store' \
+	--exclude='.svn' \
+    --exclude='Thumbs.db' \
+    "$PROJECT_ROOT/" "$DEST_DIR/"
+
+# Check rsync exit status
+if [[ $? -eq 0 ]]; then
+    echo ""
+    echo "✓ Successfully copied files to $DEST_DIR"
+    echo ""
+    echo "Note: The following were excluded:"
+    echo "  - node_modules (will be installed in production)"
+    echo "  - dist (will be built in production)"
+    echo "  - logs, *.log files"
+    echo "  - .git, development files"
+	echo "  - .svn subversion files"
+    echo "  - backup files, cookies, and temporary data"
+else
+    echo ""
+    echo "✗ Error: Failed to copy files" >&2
+    exit 1
+fi
+

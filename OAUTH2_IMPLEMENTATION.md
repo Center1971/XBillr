@@ -32,7 +32,7 @@
 
 1. **Login Page** (`frontend/login.html`):
    - Removed username/password form
-   - Added "Mit Keycloak anmelden" button
+   - Added "Bei SME Tools anmelden" button
    - Redirects to `/api/auth/login` which redirects to Keycloak
 
 2. **Main App** (`frontend/index.html`):
@@ -42,7 +42,7 @@
 
 ### OAuth2 Flow
 
-1. User clicks "Mit Keycloak anmelden"
+1. User clicks "Bei SME Tools anmelden"
 2. Frontend redirects to `/api/auth/login?return_to=/index.html`
 3. Backend generates `state` and `nonce`, stores in session
 4. Backend redirects to Keycloak authorization endpoint
@@ -73,7 +73,7 @@
 # 1. Open login page
 open http://localhost:8082/login.html
 
-# 2. Click "Mit Keycloak anmelden"
+# 2. Click "Bei SME Tools anmelden"
 # 3. Login in Keycloak
 # 4. You should be redirected back to XBillr main app
 ```

@@ -1,0 +1,356 @@
+/* SME Tools Custom Keycloak Theme Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* Main login container */
+#kc-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+}
+
+#kc-container-wrapper {
+    width: 100%;
+}
+
+/* Header with logo */
+#kc-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+#kc-header-wrapper {
+    padding: 0;
+}
+
+.kc-logo-text {
+    color: #1976d2;
+    font-size: 28px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+#kc-header-wrapper img {
+    max-width: 200px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+/* Form container */
+#kc-content {
+    margin-top: 20px;
+}
+
+#kc-content-wrapper {
+    width: 100%;
+}
+
+/* Info text */
+#kc-info {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+#kc-info-wrapper {
+    color: #666;
+    font-size: 14px;
+}
+
+#kc-info-wrapper a {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+#kc-info-wrapper a:hover {
+    text-decoration: underline;
+}
+
+/* Form styling */
+#kc-form {
+    width: 100%;
+}
+
+#kc-form-wrapper {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+#kc-form label,
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+#kc-form input[type="text"],
+#kc-form input[type="password"],
+#kc-form input[type="email"],
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+}
+
+#kc-form input:focus,
+.form-group input:focus {
+    outline: none;
+    border-color: #1976d2;
+}
+
+/* Buttons */
+#kc-form-buttons {
+    margin-top: 30px;
+}
+
+#kc-form input[type="submit"],
+#kc-form button[type="submit"],
+.btn-primary,
+button.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+#kc-form input[type="submit"]:hover,
+#kc-form button[type="submit"]:hover,
+.btn-primary:hover,
+button.btn-primary:hover {
+    background: #1565c0;
+}
+
+#kc-form input[type="submit"]:disabled,
+#kc-form button[type="submit"]:disabled,
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Secondary buttons */
+.btn-secondary {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    color: #1976d2;
+    border: 2px solid #1976d2;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 10px;
+}
+
+.btn-secondary:hover {
+    background: #1976d2;
+    color: white;
+}
+
+/* Alert messages */
+.alert {
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.alert-error,
+.kc-feedback-text {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.alert-warning {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+.alert-success {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.alert-info {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+/* Feedback area */
+#kc-feedback {
+    margin-bottom: 20px;
+}
+
+.alert .kc-feedback-text {
+    background: transparent;
+    padding: 0;
+}
+
+/* Login options */
+#kc-form-options {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+#kc-form-options label {
+    display: flex;
+    align-items: center;
+    color: #666;
+    font-weight: normal;
+}
+
+#kc-form-options input[type="checkbox"] {
+    width: auto;
+    margin-right: 5px;
+}
+
+#kc-form-options a {
+    color: #1976d2;
+    text-decoration: none;
+}
+
+#kc-form-options a:hover {
+    text-decoration: underline;
+}
+
+/* Social providers */
+#kc-social-providers {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+#kc-social-providers ul {
+    list-style: none;
+    padding: 0;
+}
+
+#kc-social-providers li {
+    margin-bottom: 10px;
+}
+
+#kc-social-providers a {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: #f5f5f5;
+    color: #333;
+    text-align: center;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.3s;
+}
+
+#kc-social-providers a:hover {
+    background: #e0e0e0;
+}
+
+/* Registration */
+#kc-registration {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+#kc-registration span {
+    color: #666;
+    font-size: 14px;
+}
+
+#kc-registration a {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 500;
+    margin-left: 5px;
+}
+
+#kc-registration a:hover {
+    text-decoration: underline;
+}
+
+/* Terms and conditions */
+#kc-terms-text {
+    color: #666;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
+
+/* Required fields indicator */
+.required {
+    color: #c62828;
+}
+
+/* Loading spinner */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    #kc-container {
+        padding: 30px 20px;
+    }
+    
+    .kc-logo-text {
+        font-size: 24px;
+    }
+    
+    #kc-header-wrapper img {
+        max-width: 150px;
+    }
+}

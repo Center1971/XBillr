@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+
+use Parse::RecDescent;
+use File::Slurp;
+use Term::ANSIColor qw(:constants);
+
+$| = 1;
+
+chdir("KissApi");
+
+my $grammar = read_file($ARGV[0] || "grammar");
+
+Parse::RecDescent->Precompile(
+    {
+        -runtime_class => "Config::File::RRJSON::ParserRuntime",
+    },
+    $grammar,
+    "Config::File::RRJSON::Parser"
+                             ) || die "cannot precompile type parser";
+
+print BOLD, BLUE, ON_WHITE, "parser compilation successfully finished!\n", RESET;
+
+
+Parse::RecDescent->PrecompiledRuntime('Config::File::RRJSON::ParserRuntime') || die "cannot precompile parser runtime";
+
+Parse::RecDescent->Precompile(
+    {
+        -standalone => 1,
+        -runtime_class => 'Config::File::RRJSON::ParserRuntime',
+    },
+    '',
+    'Config::File::RRJSON::ParserRuntime'
+                             ) || die "cannot precompile parser runtime";
+
+print BOLD, BLUE, ON_WHITE, "parser runtime compilation successfully finished!\n", RESET;

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SME Tools Keycloak Theme Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        #kc-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        #kc-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        #kc-header img {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        
+        .kc-logo-text {
+            color: #1976d2;
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        #kc-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .alert-info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        #kc-form-options {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        #kc-form-options label {
+            display: flex;
+            align-items: center;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        #kc-form-options input[type="checkbox"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        #kc-form-options a {
+            color: #1976d2;
+            text-decoration: none;
+        }
+        
+        #kc-form-options a:hover {
+            text-decoration: underline;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+        
+        .btn-secondary {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            color: #1976d2;
+            border: 2px solid #1976d2;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background: #1976d2;
+            color: white;
+        }
+        
+        #kc-registration {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        #kc-registration span {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        #kc-registration a {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 500;
+            margin-left: 5px;
+        }
+        
+        #kc-registration a:hover {
+            text-decoration: underline;
+        }
+        
+        .preview-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+        }
+        
+        .preview-controls h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .preview-controls button {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .preview-controls button:hover {
+            background: #e0e0e0;
+        }
+        
+        .preview-controls button.active {
+            background: #1976d2;
+            color: white;
+            border-color: #1976d2;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-controls">
+        <h3>Preview Mode</h3>
+        <button onclick="showLogin()" class="active" id="btn-login">Login</button>
+        <button onclick="showRegister()" id="btn-register">Registration</button>
+        <button onclick="showReset()" id="btn-reset">Password Reset</button>
+        <button onclick="showError()" id="btn-error">Error</button>
+    </div>
+
+    <div id="kc-container">
+        <div id="kc-header">
+            <img src="smetools/login/resources/img/logo.svg" alt="SME Tools">
+            <div class="kc-logo-text" id="page-title">Bei SME Tools anmelden</div>
+        </div>
+        
+        <div id="kc-content">
+            <!-- Login Form -->
+            <div id="login-form">
+                <form onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="username">Benutzername oder E-Mail</label>
+                        <input type="text" id="username" placeholder="jeff@example.com" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Passwort</label>
+                        <input type="password" id="password" value="">
+                    </div>
+
+                    <div id="kc-form-options">
+                        <label>
+                            <input type="checkbox" id="rememberMe">
+                            <span>Angemeldet bleiben</span>
+                        </label>
+                        <a href="#">Passwort vergessen?</a>
+                    </div>
+
+                    <div style="margin-top: 30px;">
+                        <button type="submit" class="btn-primary">Anmelden</button>
+                    </div>
+                </form>
+                
+                <div id="kc-registration">
+                    <span>Noch kein Konto? <a href="#">Registrieren</a></span>
+                </div>
+            </div>
+
+            <!-- Registration Form -->
+            <div id="register-form" class="hidden">
+                <form onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="company">Unternehmen</label>
+                        <input type="text" id="company" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="firstName">Vorname</label>
+                        <input type="text" id="firstName" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lastName">Nachname</label>
+                        <input type="text" id="lastName" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">E-Mail</label>
+                        <input type="email" id="email" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regUsername">Benutzername</label>
+                        <input type="text" id="regUsername" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="regPassword">Passwort</label>
+                        <input type="password" id="regPassword" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="passwordConfirm">Passwort bestätigen</label>
+                        <input type="password" id="passwordConfirm" value="">
+                    </div>
+
+                    <div style="margin-top: 30px;">
+                        <button type="submit" class="btn-primary">Registrieren</button>
+                    </div>
+                </form>
+                
+                <div id="kc-registration">
+                    <span>Haben Sie bereits ein Konto? <a href="#">Anmelden</a></span>
+                </div>
+            </div>
+
+            <!-- Password Reset Form -->
+            <div id="reset-form" class="hidden">
+                <div class="alert alert-info">
+                    <p>Geben Sie Ihren Benutzernamen oder Ihre E-Mail-Adresse ein und wir senden Ihnen Anweisungen zum Zurücksetzen Ihres Passworts.</p>
+                </div>
+
+                <form onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="resetUsername">Benutzername oder E-Mail</label>
+                        <input type="text" id="resetUsername" value="">
+                    </div>
+
+                    <div style="margin-top: 30px;">
+                        <button type="submit" class="btn-primary">Absenden</button>
+                    </div>
+                </form>
+                
+                <div id="kc-registration">
+                    <span><a href="#">« Zurück zur Anmeldung</a></span>
+                </div>
+            </div>
+
+            <!-- Error Display -->
+            <div id="error-display" class="hidden">
+                <div class="alert alert-error">
+                    <p><strong>Fehler:</strong> Ungültiger Benutzername oder Passwort.</p>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <button onclick="showLogin()" class="btn-primary">Zurück zur Anmeldung</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function hideAll() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('reset-form').classList.add('hidden');
+            document.getElementById('error-display').classList.add('hidden');
+            
+            document.querySelectorAll('.preview-controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        function showLogin() {
+            hideAll();
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('page-title').textContent = 'Bei XBillr anmelden';
+            document.getElementById('btn-login').classList.add('active');
+        }
+
+        function showRegister() {
+            hideAll();
+            document.getElementById('register-form').classList.remove('hidden');
+            document.getElementById('page-title').textContent = 'Neues Konto erstellen';
+            document.getElementById('btn-register').classList.add('active');
+        }
+
+        function showReset() {
+            hideAll();
+            document.getElementById('reset-form').classList.remove('hidden');
+            document.getElementById('page-title').textContent = 'Passwort vergessen?';
+            document.getElementById('btn-reset').classList.add('active');
+        }
+
+        function showError() {
+            hideAll();
+            document.getElementById('error-display').classList.remove('hidden');
+            document.getElementById('page-title').textContent = 'Es ist ein Fehler aufgetreten';
+            document.getElementById('btn-error').classList.add('active');
+        }
+    </script>
+</body>
+</html>

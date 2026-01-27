@@ -1,0 +1,110 @@
+{
+    use Data::Dumper::Concise;
+
+    $::RD_ERRORS = 1;
+    $::RD_WARN   = 3;
+    $::RD_HINT   = 1;
+
+    $::RD_AUTOACTION = q { $return = $#item == 1 ? { $item[0] => $item[1] } : { %item } };
+}
+
+startrule:
+    <skip: qr{(?xs:
+          (?: \s+                       # Whitespace
+          |   /[*] (?:(?![*]/).)* [*]/  # Inline comment
+          |   // [^\n]* \n?             # End of line comment
+          )
+       )*}>
+    (Comment | Def )(s)
+    EOF
+    { $item[2] }
+
+Comment: SingleLineComment(s) | MultiLineComment
+
+SingleLineComment: /[#]|\/\// /[^\n]*/
+
+MultiLineComment: '/*' m{((?! \*/ | /\* ).)*}sx '*/'
+
+Def: Key ((Colon(?) Hash) | (Colon(?) Array) | (Colon AnyString))
+{
+    print Dumper(\%item);
+    print Dumper(\@item);
+    $return = { $item[1] => $item[3] };
+}
+
+Key: Identifier | SingleQuotedString | DoubleQuotedString
+
+Hash: OpenBrace Def(s) CloseBrace
+{
+    print "/" x 80, "\nHash:\n\@item:\n", Dumper(\@item), "%item:\n", Dumper(\%item), "/" x 80, "\n" if $::debug > 2;
+
+    $return = $item[2];
+}
+
+Array: OpenBracket ArrayItem(s?) FinalArrayItem CloseBracket
+{
+    print "/" x 80, "\nArray:\n\@item:\n", Dumper(\@item), "%item:\n", Dumper(\%item), "/" x 80, "\n" if $::debug > 2;
+
+    $return = $item[2];
+}
+
+ArrayItem: FinalArrayItem Comma
+{
+    $return = $item[1];
+}
+
+FinalArrayItem: Def[is_recursive => 1] | Hash[is_recursive => 1] | Array[is_recursive => 1] | AnyString
+
+Identifier: /[a-z][a-z0-9_]*/i
+
+SingleQuotedString: SingleQuote /(\\'|\n|[^'])*/ SingleQuote
+{
+    $return = $item[2];
+}
+
+DoubleQuotedString: DoubleQuote /(\\"|\n|[^"])*/ DoubleQuote
+{
+    $return = $item[2];
+}
+
+AnyString: SingleQuotedString | DoubleQuotedString | String
+
+String: <skip: '\s*'> /[-!#$%&()*+.\/0-9:;<=>?\@A-Z^_`\|~ \t]+/i
+{
+    $item[2] =~ s/[,\s]*$//;
+
+    $return = $item[2];
+}
+
+NewLine: "\n"
+
+Slash: '/'
+
+At: '@'
+
+Dot: '.'
+
+Colon: ':'
+
+Comma: ','
+
+DoubleQuote: '"'
+
+SingleQuote: /'/
+
+OpenBracket: '['
+
+CloseBracket: ']'
+
+OpenBrace: '{'
+
+CloseBrace: '}'
+
+Minus: '-'
+
+Plus: '+'
+
+Equals: '='
+
+EOF: /\Z/
+
