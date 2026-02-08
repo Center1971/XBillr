@@ -30,9 +30,6 @@ eval {
     $test_dbh = DBI->connect($dsn, $user, $pass, {
         RaiseError => 0,
         PrintError => 0,
-        mysql_connect_timeout => 10,
-        mysql_read_timeout => 10,
-        mysql_write_timeout => 10,
     });
     alarm(0);
 };
@@ -63,9 +60,6 @@ eval {
     $schema = XBillr::Model::DB->connect($dsn, $user, $pass, {
         RaiseError => 1,
         PrintError => 0,
-        mysql_connect_timeout => 10,
-        mysql_read_timeout => 10,
-        mysql_write_timeout => 10,
         on_connect_do => [
             'SET NAMES utf8mb4',
             'SET CHARACTER SET utf8mb4',

@@ -1,0 +1,22 @@
+{
+  "appId": "eu.xbillr.mobile",
+  "appName": "XBillr",
+  "webDir": "www",
+  "server": {
+    "allowNavigation": [
+      "https://xbillr.eu",
+      "https://www.xbillr.eu",
+      "https://iam.smetools.eu"
+    ]
+  },
+  "plugins": {
+    "StatusBar": { "style": "DARK" },
+    "Keyboard": { "resize": "body" }
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "preferredContentMode": "mobile"
+  }
+}

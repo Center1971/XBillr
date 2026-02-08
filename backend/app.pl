@@ -45,6 +45,8 @@ app->routes->namespaces(['XBillr::Controller']);
 my $r = app->routes;
 
 $r->get('/api/auth/login')->to('auth#login');
+$r->get('/api/auth/local-login')->to('auth#local_login_form')->name('local_login');
+$r->post('/api/auth/login')->to('auth#login_post');
 $r->get('/api/auth/oidc/callback')->to('auth#oidc_callback');
 $r->post('/api/auth/logout')->to('auth#logout');
 $r->get('/api/auth/me')->to('auth#me');
@@ -237,6 +239,7 @@ hook before_dispatch => sub {
         return if $path eq '/api/health';
         return if $path eq '/api/config';
         return if $path eq '/api/auth/login';
+        return if $path eq '/api/auth/local-login';
         return if $path eq '/api/auth/logout';
         return if $path eq '/api/auth/oidc/login';
         return if $path eq '/api/auth/oidc/callback';

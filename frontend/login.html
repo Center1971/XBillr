@@ -143,6 +143,8 @@
             <button class="login-button" id="loginButton" onclick="initiateLogin()">
                 Bei SME Tools anmelden
             </button>
+            <p style="margin-top: 16px; font-size: 14px; color: #666;">oder</p>
+            <a href="#" id="localLoginLink" style="display: block; margin-top: 8px; color: #1976d2; font-size: 14px;">Lokal anmelden (z. B. admin)</a>
         </div>
     </div>
     
@@ -151,15 +153,16 @@
         let API_BASE = '/api'; // Default fallback (relative path)
         let appConfig = null;
         
-        // Detect development mode: frontend on :8082, backend on :3002
+        // Detect development mode: frontend on :8080/:8082, backend on :3002
         function isDevelopmentMode() {
-            return window.location.port === '8082' || window.location.hostname === 'localhost';
+            const port = window.location.port;
+            return window.location.hostname === 'localhost' && (port === '8080' || port === '8082' || port === '');
         }
         
         // Get config endpoint URL (handles dev vs prod)
         function getConfigUrl() {
-            if (isDevelopmentMode() && window.location.port === '8082') {
-                // Development: frontend on :8082, backend on :3002
+            if (isDevelopmentMode()) {
+                // Development: frontend on :8080/:8082, backend on :3002
                 return 'http://localhost:3002/api/config';
             }
             // Production: use relative path (reverse proxy handles routing)
@@ -178,16 +181,14 @@
                     console.log('Loaded config:', { apiBaseUrl: API_BASE });
                 } else {
                     console.warn('Config endpoint returned:', response.status);
-                    // Fallback for development
-                    if (isDevelopmentMode() && window.location.port === '8082') {
+                    if (isDevelopmentMode()) {
                         API_BASE = 'http://localhost:3002/api';
                         console.log('Using development fallback:', API_BASE);
                     }
                 }
             } catch (error) {
                 console.warn('Failed to load config:', error);
-                // Fallback for development
-                if (isDevelopmentMode() && window.location.port === '8082') {
+                if (isDevelopmentMode()) {
                     API_BASE = 'http://localhost:3002/api';
                     console.log('Using development fallback:', API_BASE);
                 }
@@ -196,6 +197,11 @@
         
         // Check if already logged in by testing the session
         async function checkSession() {
+            // Mit ?show=1 oder ?force=1 Login-Seite immer anzeigen (z. B. anderer Benutzer)
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('show') === '1' || params.get('force') === '1') {
+                return;
+            }
             try {
                 const response = await fetch(`${API_BASE}/auth/me`, {
                     credentials: 'include', // Important: include cookies
@@ -217,11 +223,14 @@
             loginButton.disabled = true;
             loginButton.innerHTML = '<span class="loading"></span> Weiterleitung zu Keycloak...';
             
-            // Redirect to backend login endpoint, which will redirect to Keycloak
-            // After successful login, Keycloak redirects to /api/auth/oidc/callback
-            // which stores the session and redirects to the main app
-            const returnTo = new URLSearchParams(window.location.search).get('return_to') || '/index.html';
+            const returnTo = new URLSearchParams(window.location.search).get('return_to') || (window.location.origin + '/index.html');
             window.location.href = `${API_BASE}/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+        }
+        
+        // Lokale Anmeldung (admin / admin123) – Backend zeigt Formular
+        function goLocalLogin() {
+            const returnTo = new URLSearchParams(window.location.search).get('return_to') || (window.location.origin + '/index.html');
+            window.location.href = `${API_BASE}/auth/login?local=1&return_to=${encodeURIComponent(returnTo)}`;
         }
         
         // Initialize app: load config, then check session
@@ -231,7 +240,10 @@
         }
         
         // Start initialization on page load
-        init();
+        init().then(() => {
+            document.getElementById('localLoginLink').href = '#'; // set by click
+            document.getElementById('localLoginLink').onclick = function(e) { e.preventDefault(); goLocalLogin(); };
+        });
     </script>
 </body>
 </html>

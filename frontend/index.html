@@ -658,6 +658,32 @@
         .tab-content.active {
             display: block;
         }
+
+        .help-section {
+            margin-top: 28px;
+            padding: 20px;
+            background: var(--bg-gray-50);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        .help-section h3 {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .help-content p {
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .help-content p:last-child {
+            margin-bottom: 0;
+        }
+        .help-content strong {
+            color: var(--text-primary);
+        }
         
         .card h3 {
             color: var(--text-primary);
@@ -1733,6 +1759,17 @@
                 <div id="users-content">
                     <div class="loading">Lade Benutzer...</div>
                 </div>
+                <div id="users-help" class="help-section">
+                    <h3><span class="material-icons" style="vertical-align: middle; margin-right: 6px;">help_outline</span>Hilfe – Benutzerverwaltung</h3>
+                    <div class="help-content">
+                        <p><strong>Benutzer anzeigen</strong><br>In der Tabelle sehen Sie alle Benutzer mit Benutzername, E-Mail, Name, zugewiesenen Rollen und Status (Aktiv/Inaktiv).</p>
+                        <p><strong>Neuer Benutzer</strong><br>Klicken Sie auf „Neuer Benutzer“, um einen Account anzulegen. Der Benutzer erhält optional per E-Mail Login-Daten.</p>
+                        <p><strong>Bearbeiten</strong><br>Über „Bearbeiten“ können Sie Benutzerdaten und Rollen ändern.</p>
+                        <p><strong>Login-Daten senden</strong><br>Versendet eine E-Mail mit Zugangsdaten oder einem temporären Passwort an den Benutzer (falls E-Mail konfiguriert ist).</p>
+                        <p><strong>Rollen & Berechtigungen</strong><br>Rollen steuern, was ein Benutzer darf (z. B. nur lesen, Rechnungen erstellen, Benutzer verwalten). Administratoren haben alle Rechte.</p>
+                        <p><strong>Lokale Anmeldung</strong><br>Ohne Keycloak: Auf der Login-Seite „Lokal anmelden“ wählen und z. B. mit <em>admin</em> / <em>admin123</em> anmelden. Passwort nach dem ersten Login ändern.</p>
+                    </div>
+                </div>
             </div>
             
             <div id="supplier" class="tab-content">
@@ -1852,15 +1889,16 @@
         let API_BASE = '/api'; // Default fallback (relative path)
         let appConfig = null;
         
-        // Detect development mode: frontend on :8082, backend on :3002
+        // Detect development mode: frontend on :8080/:8082, backend on :3002
         function isDevelopmentMode() {
-            return window.location.port === '8082' || window.location.hostname === 'localhost';
+            const port = window.location.port;
+            return window.location.hostname === 'localhost' && (port === '8080' || port === '8082' || port === '');
         }
         
         // Get config endpoint URL (handles dev vs prod)
         function getConfigUrl() {
-            if (isDevelopmentMode() && window.location.port === '8082') {
-                // Development: frontend on :8082, backend on :3002
+            if (isDevelopmentMode()) {
+                // Development: frontend on :8080/:8082, backend on :3002
                 return 'http://localhost:3002/api/config';
             }
             // Production: use relative path (reverse proxy handles routing)
@@ -1879,16 +1917,14 @@
                     console.log('Loaded config:', { apiBaseUrl: API_BASE });
                 } else {
                     console.warn('Config endpoint returned:', response.status);
-                    // Fallback for development
-                    if (isDevelopmentMode() && window.location.port === '8082') {
+                    if (isDevelopmentMode()) {
                         API_BASE = 'http://localhost:3002/api';
                         console.log('Using development fallback:', API_BASE);
                     }
                 }
             } catch (error) {
                 console.warn('Failed to load config:', error);
-                // Fallback for development
-                if (isDevelopmentMode() && window.location.port === '8082') {
+                if (isDevelopmentMode()) {
                     API_BASE = 'http://localhost:3002/api';
                     console.log('Using development fallback:', API_BASE);
                 }

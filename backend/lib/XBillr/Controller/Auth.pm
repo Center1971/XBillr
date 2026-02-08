@@ -17,8 +17,13 @@ use Crypt::JWT qw(encode_jwt);
 sub login {
     my $c = shift;
     
+    # Lokaler Login (admin/admin123) wenn ?local=1
+    if ($c->param('local')) {
+        my $return_to = $c->param('return_to') || 'http://localhost:8080/index.html';
+        return $c->redirect_to($c->url_for('local_login')->query(return_to => $return_to));
+    }
+    
     # Redirect to OAuth2/OIDC Authorization Code Flow
-    # This endpoint no longer accepts username/password credentials
     $c->app->log->info("Login: Redirecting to OIDC authorization endpoint");
     
     my $iam = $c->app->config->{iam} || {};
@@ -52,6 +57,68 @@ sub login {
 
     my $url = Mojo::URL->new($authorization_url)->query(\%query);
     return $c->redirect_to($url->to_string);
+}
+
+# Einfaches HTML-Formular für Benutzername/Passwort (ohne Keycloak)
+sub local_login_form {
+    my $c = shift;
+    my $return_to = $c->param('return_to') || 'http://localhost:8080/index.html';
+    my $error = $c->param('error') || '';
+    my $api_base = $c->req->url->to_abs->base->to_string;
+    $api_base =~ s{/$}{};
+    my $action = "$api_base/api/auth/login";
+    $c->render(
+        inline => '<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>XBillr – Lokale Anmeldung</title>
+<style>body{font-family:sans-serif;max-width:320px;margin:2rem auto;padding:1rem;}
+input{width:100%%;padding:0.5rem;margin:0.25rem 0;} button{width:100%%;padding:0.6rem;margin-top:0.5rem;background:#0d6efd;color:#fff;border:0;cursor:pointer;}
+.error{color:red;font-size:0.9rem;}</style></head>
+<body>
+<h1>XBillr – Lokale Anmeldung</h1>
+<% if ($error) { %><p class="error"><%= $error %></p><% } %>
+<form method="post" action="<%= $action %>">
+<input type="hidden" name="return_to" value="<%= $return_to %>">
+<label>Benutzername</label><input type="text" name="username" required autocomplete="username">
+<label>Passwort</label><input type="password" name="password" required autocomplete="current-password">
+<button type="submit">Anmelden</button>
+</form>
+</body></html>',
+        return_to => $return_to,
+        error => $error,
+        action => $action,
+    );
+}
+
+# POST Login (Benutzername/Passwort) – setzt Session-Cookie
+sub login_post {
+    my $c = shift;
+    my $username = $c->param('username') || ($c->req->json && $c->req->json->{username});
+    my $password = $c->param('password') || ($c->req->json && $c->req->json->{password});
+    my $return_to = $c->param('return_to') || ($c->req->json && $c->req->json->{return_to}) || 'http://localhost:8080/index.html';
+    
+    unless ($username && $password) {
+        return $c->redirect_to($c->url_for('local_login')->query(return_to => $return_to, error => 'Benutzername und Passwort erforderlich'));
+    }
+    
+    my $schema = $c->app->schema or return $c->render(json => { error => 'Datenbank nicht verfügbar' }, status => 503);
+    my $auth_service = XBillr::Service::AuthService->new(schema => $schema);
+    my $result = $auth_service->login($username, $password, $c->tx->remote_address || '', $c->req->headers->user_agent || '');
+    
+    unless ($result->{success}) {
+        my $err = $result->{error} || 'Anmeldung fehlgeschlagen';
+        return $c->redirect_to($c->url_for('local_login')->query(return_to => $return_to, error => $err));
+    }
+    
+    # Session-Cookie setzen (HttpOnly, 7 Tage)
+    $c->cookie(xbillr_session => $result->{session_token}, {
+        path => '/',
+        max_age => 7 * 24 * 3600,
+        httponly => 1,
+        samesite => 'Lax',
+    });
+    
+    # Redirect zum Frontend
+    return $c->redirect_to($return_to);
 }
 
 sub oidc_login {

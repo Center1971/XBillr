@@ -277,6 +277,11 @@ sub register {
             my $session = $c->session('oidc') || {};
             $token = $session->{access_token} || '';
         }
+        # Lokale Session: Cookie xbillr_session (Benutzername/Passwort-Login)
+        unless ($token) {
+            $token = $c->req->cookie('xbillr_session');
+            $token = $token->value if $token && ref($token);
+        }
 
         unless ($token) {
             $c->render(json => { error => 'Authentifizierung erforderlich' }, status => 401);
