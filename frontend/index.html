@@ -1303,7 +1303,7 @@
                     <div class="dialog" onclick="event.stopPropagation()" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
                         <div class="dialog-title" id="customer-dialog-title">Neuer Kunde</div>
                         <div class="dialog-content">
-                            <form id="customer-form-element" onsubmit="saveCustomer(event)">
+                            <form id="customer-form-element" onsubmit="saveCustomer(event); return false;">
                                 <input type="hidden" id="customer-id" value="">
                                 <div class="text-field">
                                     <label for="customer-name">Name <span style="color: var(--danger-color);">*</span></label>
@@ -2428,38 +2428,56 @@
                 paymentTerms: paymentTerms ? parseInt(paymentTerms) : undefined
             };
             
+            const url = customerId ? `${API_BASE}/customers/${customerId}` : `${API_BASE}/customers`;
+            const method = customerId ? 'PUT' : 'POST';
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+            
             try {
-                const url = customerId ? `${API_BASE}/customers/${customerId}` : `${API_BASE}/customers`;
-                const method = customerId ? 'PUT' : 'POST';
-                
                 const response = await authenticatedFetch(url, {
                     method: method,
-                    body: JSON.stringify(customerData)
+                    body: JSON.stringify(customerData),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 
-                let result;
+                let result = {};
                 try {
-                    result = await response.json();
+                    const text = await response.text();
+                    if (text && text.trim()) {
+                        result = JSON.parse(text);
+                    }
                 } catch (_) {
-                    result = {};
+                    console.warn('saveCustomer: response body was not JSON', response.status, text ? text.slice(0, 200) : '');
                 }
                 
-                if (response.ok) {
+                const isCreate = method === 'POST';
+                const success = response.ok && (!isCreate ? (result && !result.error) : (result && result.id));
+                
+                if (success) {
                     closeCustomerDialog();
                     loadCustomers();
                     loadOverview();
                     alert(customerId ? 'Kunde erfolgreich geändert!' : 'Kunde erfolgreich erfasst!');
-                } else {
-                    const status = response.status;
-                    const errorMsg = result.error ||
-                        (result.details ? (Array.isArray(result.details) ? result.details.join(', ') : result.details) : null) ||
-                        (status === 401 || status === 0 ? 'Bitte erneut anmelden (Session abgelaufen oder nicht angemeldet).' : null) ||
-                        (status === 403 ? 'Keine Berechtigung für diese Aktion.' : null) ||
-                        'Der Kunde konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.';
-                    alert('Fehler beim Speichern:\n' + errorMsg);
+                    return;
                 }
+                
+                const status = response.status;
+                const errorMsg = result.error ||
+                    (result.details ? (Array.isArray(result.details) ? result.details.join(', ') : String(result.details)) : null) ||
+                    (status === 401 || status === 0 ? 'Bitte erneut anmelden (Session abgelaufen oder nicht angemeldet).' : null) ||
+                    (status === 403 ? 'Keine Berechtigung für diese Aktion.' : null) ||
+                    (status >= 502 ? 'Server oder Proxy-Fehler. Bitte später erneut versuchen.' : null) ||
+                    'Der Kunde konnte nicht gespeichert werden. (HTTP ' + status + ')';
+                console.error('saveCustomer failed', { status, result, url });
+                alert('Fehler beim Speichern:\n' + errorMsg);
             } catch (error) {
-                alert('Der Kunde konnte nicht gespeichert werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
+                clearTimeout(timeoutId);
+                const isAbort = error.name === 'AbortError';
+                console.error('saveCustomer error', error);
+                alert(isAbort
+                    ? 'Die Anfrage hat zu lange gedauert. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut.'
+                    : 'Der Kunde konnte nicht gespeichert werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.');
             }
         }
         

@@ -21,6 +21,8 @@ echo ""
 
 # Create destination directory if it doesn't exist
 mkdir -p "$DEST_DIR"
+# Create log directory if it doesn't exist
+mkdir -p "${DEST_DIR}/logs"
 
 # Use rsync to copy files
 # Exclude common development files and directories

@@ -10,6 +10,7 @@
   log => {
     level => 'info',
     path => '../logs/xbillr.log',  # Relative to backend/ directory, resolves to project root ./logs/
+
   },
 
   # Datenbank (kann durch Umgebungsvariablen überschrieben werden)

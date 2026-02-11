@@ -21,6 +21,8 @@ requires 'Email::Sender', '>= 1.300035';
 requires 'Email::Simple', '>= 2.218';
 requires 'Email::Simple::Creator', '>= 1.424';
 requires 'MIME::Base64', '>= 3.16';
+requires 'Parse::RecDescent', '>= 1.967015';
+requires 'XML::Generator',    '>= 1.04';
 # Mojolicious::Plugin::CORS ist optional, verwenden wir stattdessen manuelles CORS
 # requires 'Mojolicious::Plugin::CORS', '>= 1.0';
 

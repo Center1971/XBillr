@@ -34,7 +34,7 @@ RUN cpanm --notest Mojolicious && \
 COPY . .
 
 # Verzeichnisse für Logs erstellen
-RUN mkdir -p /app/log
+RUN mkdir -p /app/log /app/logs
 
 # Entrypoint-Script kopieren und ausführbar machen
 COPY docker-entrypoint.sh /usr/local/bin/

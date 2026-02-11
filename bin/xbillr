@@ -34,6 +34,7 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG_DIR="${PROJECT_ROOT}/config"
 
 # PID file paths
 BACKEND_PID_FILE="$PROJECT_ROOT/.backend.pid"
@@ -85,8 +86,10 @@ print_usage() {
 get_compose_files() {
     local system=$1
     if [ "$system" = "prod" ]; then
+		cp "${CONFIG_DIR}/xbillr.conf.prod" "${CONFIG_DIR}/xbillr.conf"
         echo "-f docker-compose.yml -f docker-compose.prod.yml"
     else
+		cp "${CONFIG_DIR}/xbillr.conf.devel" "${CONFIG_DIR}/xbillr.conf"
         echo "-f docker-compose.yml"
     fi
 }

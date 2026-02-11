@@ -36,11 +36,11 @@ services:
       DB_DSN: "dbi:MariaDB:database=xbillr;host=mariadb;port=3306"
       DB_USER: ${DB_USER:-root}
       DB_PASSWORD: ${DB_PASSWORD:-u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3002,http://localhost:8080,http://127.0.0.1:3002,http://127.0.0.1:8080,file://}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3002,http://localhost:8082,http://127.0.0.1:3002,http://127.0.0.1:8082,file://}
     ports:
       - "${BACKEND_PORT:-3002}:3002"
     volumes:
-      - ./logs:/app/logs
+      - ./logs:/logs
       - ./config/xbillr.conf:/app/config/xbillr.conf:ro
     healthcheck:
       test: ["CMD", "perl", "-e", "use LWP::Simple; exit(get('http://127.0.0.1:3002/api/health') ? 0 : 1)"]

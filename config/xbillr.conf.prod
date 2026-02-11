@@ -8,14 +8,15 @@
 
   # Logging
   log => {
-    level => 'info',
-    path => '../logs/xbillr.log',  # Relative to backend/ directory, resolves to project root ./logs/
+     level => 'info',
+     path  => 'logs/xbillr.log',        # relative to /app
+     # or absolute: '/app/logs/xbillr.log'
   },
 
   # Datenbank (kann durch Umgebungsvariablen überschrieben werden)
   # Hinweis: host=127.0.0.1 statt localhost, damit port= funktioniert (localhost nutzt Unix-Socket)
   database => {
-    dsn => 'dbi:MariaDB:database=xbillr;host=127.0.0.1;port=3397',
+    dsn => 'dbi:MariaDB:database=xbillr;host=127.0.0.1;port=3307',
     user => 'root',
     password => 'u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX',
   },
