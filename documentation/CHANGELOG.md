@@ -2,6 +2,93 @@
 
 Alle wichtigen Änderungen an XBillr werden in dieser Datei dokumentiert.
 
+## [0.6] - 2026-01-27
+
+### Hinzugefügt
+- **Custom Keycloak Theme (SME Tools)**
+  - Vollständiges Theme mit SME Tools Branding (Logo, Farben, Layout)
+  - Gradient-Hintergrund (lila: #667eea → #764ba2) passend zur Corporate Identity
+  - Unterstützte Seiten: Login, Registrierung, Passwort-Reset, E-Mail-Verifizierung, Fehlerseiten
+  - Mehrsprachigkeit: Deutsch und Englisch (200+ übersetzte Strings)
+  - Company-Feld in Registrierungsformular integriert
+  - Theme-Struktur in `frontend/keycloak/themes/smetools/`
+- **Keycloak Company Provisioner Extension**
+  - Custom Event Listener SPI für automatische Company-Group-Verwaltung
+  - Automatische Gruppenerstellung basierend auf Company-Feld bei Registrierung
+  - Automatische Zuweisung von Benutzern zu Company-Gruppen
+  - Client-Rollen-Assignment für `xbillr-web` und `xbillr-mobile`
+  - Maven-Projekt in `frontend/keycloak/providers/`
+  - JAR-Deployment via Docker Volume Mount
+- **Keycloak Docker Integration**
+  - Keycloak und PostgreSQL Services in docker-compose.yml
+  - Volume-Mounts für Themes (`./themes`) und Providers (`./providers`)
+  - Health Checks und automatische Abhängigkeiten
+  - Konfiguration via Umgebungsvariablen (.env)
+- **Dokumentation**
+  - Theme-Installationsanleitung (README.md, THEME_SUMMARY.md)
+  - Automatisches Installationsskript (`install-theme.sh`)
+  - Preview-HTML für Theme-Testing ohne Keycloak-Installation
+  - Comprehensive Provider-Entwicklungsanleitung
+  - Troubleshooting-Guide für Provider-Installation
+  - Apache Reverse-Proxy Konfiguration für Production
+
+### Geändert
+- **Theme-Optimierungen**
+  - Social Provider Sektion wird nur bei konfigurierten Providern angezeigt
+  - Null-safe Freemarker Templates mit Default-Werten
+  - Responsive Design für Mobile und Desktop
+  - Konsistente Button- und Input-Styles
+- **Registrierung**
+  - Company-Feld als erstes Feld im Registrierungsformular
+  - Speicherung als User-Attribut (`user.attributes.company`)
+  - Validierung und Fehlerbehandlung
+- **Docker-Konfiguration**
+  - Read-only Volume Mounts für Sicherheit
+  - Separate PostgreSQL-Instanz für Keycloak
+  - Keycloak Network für Service-Isolation
+  - Environment-Variable-Konfiguration
+
+### Behoben
+- **Keycloak Theme Fehler**
+  - Freemarker `locale` Variable null-safe (wrap in parentheses für Default-Wert)
+  - Leere "Or sign in with:" Sektion bei fehlenden Social Providers entfernt
+  - Template-Rendering-Fehler durch fehlende Variablen behoben
+  - Service Provider Interface (SPI) Registrierung korrigiert
+- **Provider-Deployment**
+  - JAR-Datei-Pfad in Docker-Volume korrekt konfiguriert
+  - META-INF/services Datei für Event Listener korrekt platziert
+  - Maven Build-Prozess für Resources optimiert
+  - Cache-Clearing nach Provider-Updates
+
+### Sicherheit
+- ✅ Read-only Volume Mounts für Themes und Providers
+- ✅ Sichere Company-Group-Verwaltung mit Keycloak
+- ✅ Kein direkter Dateisystem-Zugriff im Container
+- ✅ HTTPS-ready mit Apache Reverse Proxy Konfiguration
+- ✅ Environment-basierte Secrets (keine Hardcoded Passwords)
+
+### Technische Details
+- **Theme-Struktur**: Freemarker Templates (.ftl), CSS, Images, Message Bundles
+- **Provider-Technologie**: Java 17, Keycloak SPI 26.5.1, Maven 3.x
+- **Theme-Vererbung**: Parent Theme `keycloak`, Import `common/keycloak`
+- **Event Listener ID**: `company-provisioner`
+- **Unterstützte Keycloak-Versionen**: 26.x (tested with 26.5.1)
+
+### Migrationshinweise
+- Für bestehende Installationen:
+  1. Theme-Dateien nach `keycloak/themes/smetools/` kopieren
+  2. Provider-JAR nach `keycloak/providers/` kopieren
+  3. Docker-Compose aktualisieren mit Keycloak-Services
+  4. Keycloak-Container neustarten
+  5. In Realm Settings → Themes → Login theme: `smetools` auswählen
+  6. In Realm Settings → Events → Event Listeners: `company-provisioner` hinzufügen
+
+### Bekannte Einschränkungen
+- Provider benötigt Keycloak-Neustart nach Updates
+- Company-Groups werden nur bei Neuregistrierung erstellt
+- Client-Rollen werden automatisch mit Präfix `group-` erstellt
+- Theme-Änderungen erfordern Cache-Clearing (`rm -rf /opt/keycloak/data/cache/`)
+
 ## [0.5] - 2026-01-23
 
 ### Hinzugefügt

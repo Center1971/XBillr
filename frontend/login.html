@@ -147,26 +147,23 @@
     </div>
     
     <script>
-        // Global config loaded from backend
-        let API_BASE = '/api'; // Default fallback (relative path)
+        // Global config loaded from backend. In dev (frontend on :8082), API is on :3002 –
+        // use backend URL immediately so login redirect always hits the backend (Keycloak), not the static server.
+        const isFrontendDevServer = (window.location.port === '8082' || window.location.port === '8080' || window.location.port === '8081') && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        let API_BASE = isFrontendDevServer ? 'http://localhost:3002/api' : '/api';
         let appConfig = null;
         
-        // Detect development mode: frontend on :8082, backend on :3002
         function isDevelopmentMode() {
             return window.location.port === '8082' || window.location.hostname === 'localhost';
         }
         
-        // Get config endpoint URL (handles dev vs prod)
         function getConfigUrl() {
-            if (isDevelopmentMode() && window.location.port === '8082') {
-                // Development: frontend on :8082, backend on :3002
+            if (isDevelopmentMode() && (window.location.port === '8082' || window.location.port === '8080' || window.location.port === '8081')) {
                 return 'http://localhost:3002/api/config';
             }
-            // Production: use relative path (reverse proxy handles routing)
             return '/api/config';
         }
         
-        // Load configuration from backend
         async function loadConfig() {
             try {
                 const configUrl = getConfigUrl();
@@ -174,22 +171,18 @@
                 const response = await fetch(configUrl);
                 if (response.ok) {
                     appConfig = await response.json();
-                    API_BASE = appConfig.apiBaseUrl || '/api';
+                    API_BASE = appConfig.apiBaseUrl || API_BASE;
                     console.log('Loaded config:', { apiBaseUrl: API_BASE });
                 } else {
                     console.warn('Config endpoint returned:', response.status);
-                    // Fallback for development
-                    if (isDevelopmentMode() && window.location.port === '8082') {
+                    if (isFrontendDevServer) {
                         API_BASE = 'http://localhost:3002/api';
-                        console.log('Using development fallback:', API_BASE);
                     }
                 }
             } catch (error) {
                 console.warn('Failed to load config:', error);
-                // Fallback for development
-                if (isDevelopmentMode() && window.location.port === '8082') {
+                if (isFrontendDevServer) {
                     API_BASE = 'http://localhost:3002/api';
-                    console.log('Using development fallback:', API_BASE);
                 }
             }
         }
@@ -211,17 +204,24 @@
             }
         }
         
-        // Initiate OAuth2/OIDC login flow
-        function initiateLogin() {
+        // Auth login URL: must always hit the backend (which redirects to IAM/Keycloak), never the static frontend server.
+        function getAuthLoginUrl() {
+            const returnTo = new URLSearchParams(window.location.search).get('return_to') || '/index.html';
+            const params = `return_to=${encodeURIComponent(returnTo)}`;
+            if (isFrontendDevServer) {
+                return `http://localhost:3002/api/auth/login?${params}`;
+            }
+            const base = API_BASE.startsWith('http') ? API_BASE : (window.location.origin + (API_BASE.startsWith('/') ? '' : '/') + API_BASE);
+            return `${base.replace(/\/$/, '')}/auth/login?${params}`;
+        }
+        
+        // Initiate OAuth2/OIDC login flow (always via configured IAM / Keycloak)
+        async function initiateLogin() {
             const loginButton = document.getElementById('loginButton');
             loginButton.disabled = true;
-            loginButton.innerHTML = '<span class="loading"></span> Weiterleitung zu Keycloak...';
-            
-            // Redirect to backend login endpoint, which will redirect to Keycloak
-            // After successful login, Keycloak redirects to /api/auth/oidc/callback
-            // which stores the session and redirects to the main app
-            const returnTo = new URLSearchParams(window.location.search).get('return_to') || '/index.html';
-            window.location.href = `${API_BASE}/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+            loginButton.innerHTML = '<span class="loading"></span> Weiterleitung zu SME Tools Login...';
+            if (!appConfig) await loadConfig();
+            window.location.href = getAuthLoginUrl();
         }
         
         // Initialize app: load config, then check session

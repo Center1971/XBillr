@@ -11,36 +11,36 @@ __PACKAGE__->add_columns(
         size => 36,
         is_nullable => 0,
     },
-    company => {
-        data_type => 'varchar',
-        size => 255,
-        is_nullable => 1,
-    },
     name => {
         data_type => 'varchar',
         size => 255,
         is_nullable => 0,
     },
+    address_id => {
+        data_type => 'varchar',
+        size => 36,
+        is_nullable => 1,
+    },
     address => {
         data_type => 'varchar',
         size => 255,
-        is_nullable => 0,
+        is_nullable => 1,
     },
     zip_code => {
         data_type => 'varchar',
         size => 20,
-        is_nullable => 0,
+        is_nullable => 1,
     },
     city => {
         data_type => 'varchar',
         size => 100,
-        is_nullable => 0,
+        is_nullable => 1,
     },
     country => {
         data_type => 'varchar',
         size => 2,
         default_value => 'DE',
-        is_nullable => 0,
+        is_nullable => 1,
     },
     tax_id => {
         data_type => 'varchar',
@@ -61,28 +61,17 @@ __PACKAGE__->add_columns(
         data_type => 'integer',
         is_nullable => 1,
     },
-    default_hourly_rate => {
-        data_type => 'decimal',
-        size => [10, 2],
+    tenant => {
+        data_type => 'varchar',
+        size => 255,
         is_nullable => 1,
-    },
-    default_daily_rate => {
-        data_type => 'decimal',
-        size => [10, 2],
-        is_nullable => 1,
-    },
-    tax_rate => {
-        data_type => 'decimal',
-        size => [5, 2],
-        default_value => '19.00',
-        is_nullable => 1,
-    },
-    reverse_charge => {
-        data_type => 'boolean',
-        default_value => 0,
-        is_nullable => 0,
     },
     created_at => {
+        data_type => 'datetime',
+        datetime_undef_if_invalid => 1,
+        is_nullable => 0,
+    },
+    updated_at => {
         data_type => 'datetime',
         datetime_undef_if_invalid => 1,
         is_nullable => 0,
@@ -90,6 +79,7 @@ __PACKAGE__->add_columns(
 );
 
 __PACKAGE__->set_primary_key('id');
+__PACKAGE__->belongs_to('address_obj', 'XBillr::Model::DB::Address', 'address_id');
 __PACKAGE__->has_many('hourly_rates', 'XBillr::Model::DB::HourlyRate', 'customer_id');
 __PACKAGE__->has_many('time_entries', 'XBillr::Model::DB::TimeEntry', 'customer_id');
 __PACKAGE__->has_many('invoices', 'XBillr::Model::DB::Invoice', 'customer_id');

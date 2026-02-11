@@ -5,8 +5,7 @@
 
 # Logs
 *.log
-backend/log/*
-log/*
+logs/*
 
 # Database
 *.sqlite

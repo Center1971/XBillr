@@ -187,7 +187,7 @@ docker-compose up -d
 ## Volumes
 
 - `mariadb_data`: Persistente Datenbank-Daten
-- `./backend/log`: Backend-Logs (bind mount)
+- `./logs`: All application logs (bind mount)
 
 ## Netzwerk
 

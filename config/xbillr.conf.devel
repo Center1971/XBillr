@@ -1,0 +1,102 @@
+{
+  # Mojolicious Konfiguration
+  # Session cookie signing: set 'secret' or use env MOJO_SECRET so all backend instances share the same key (required behind load balancer)
+  secret => '97fe70ae-0129-11f1-8dbe-0800272a72f0',
+  hypnotize => {
+    listen => ['http://*:3002'],
+  },
+
+  # Logging
+  log => {
+    level => 'info',
+    path => '../logs/xbillr.log',  # Relative to backend/ directory, resolves to project root ./logs/
+  },
+
+  # Datenbank (kann durch Umgebungsvariablen überschrieben werden)
+  # Hinweis: host=127.0.0.1 statt localhost, damit port= funktioniert (localhost nutzt Unix-Socket)
+  database => {
+    dsn => 'dbi:MariaDB:database=xbillr;host=127.0.0.1;port=3397',
+    user => 'root',
+    password => 'u9UUgy2ZwASrTebZ8pAGaCPnVSJZ8NRX',
+  },
+
+  # IAM / OpenID Connect
+  iam => {
+    issuer => 'https://iam.smetools.eu/realms/SME%20Tools%20-%20Test',
+    authorization_endpoint => '/protocol/openid-connect/auth',
+    token_endpoint => '/protocol/openid-connect/token',
+    jwks_uri => '/protocol/openid-connect/certs',
+    scopes => 'openid profile email',
+    tls_verify => 1,
+    auto_provision => 0,  # Disable for now (requires DB)
+    store_session_tokens => 0,  # Don't store tokens in cookie (too large)
+	
+	# Frontend base URL for redirects (same origin as API when behind proxy)
+	# *** DEVELOPMENT *** - Frontend served from backend (same origin = session cookies work)
+    frontend_url => 'http://localhost:3002',  
+	# *** PRODUCTION ***
+	# frontend_url => 'https://xbillr.hurin.com',
+
+    # When behind reverse proxy: set to the public API base URL so Keycloak 
+	# redirects to the proxy, not localhost.
+    # Example: api_public_base_url => 'https://app.example.com/api',
+    # OIDC redirect_uri becomes api_public_base_url + '/auth/oidc/callback'. 
+	# Add that URL to Keycloak Valid Redirect URIs.
+	# *** DEVELOPMENT ***
+    api_public_base_url => undef,
+	# *** PRODUCTION ***
+	# api_public_base_url => 'https://xbillr.hurin.com/api',
+
+    clients => {
+      web => {
+        client_id => 'xbillr-web',
+        # Used only when api_public_base_url is not set (e.g. local dev: backend on :3002)
+        redirect_uri => 'http://localhost:3002/api/auth/oidc/callback',
+        audience => 'xbillr-web',
+        # PEM-encoded private key for private_key_jwt
+        private_key_pem => '',
+        # Alternative for password grant in /api/auth/login
+
+        # *** DEVELOPMENT ***
+        client_secret => 'fqxzkuDIGTFrM9PgS25NaRd9yt9gfP8R',
+        # *** PRODUCTION ***
+        # client_secret => '',
+      },
+      mobile => {
+        client_id => 'xbillr-mobile',
+        redirect_uri => 'xbillr://oauth/callback',
+        audience => 'xbillr-mobile',
+        pkce_required => 1,
+      },
+    },
+  },
+
+  email => {
+    smtp_host => 'smtp.example.com',
+    smtp_port => 587,
+    smtp_user => 'your-email@example.com',
+    smtp_password => 'your-password',
+    smtp_from => 'noreply@xbillr.local',
+    smtp_from_name => 'XBillr',
+    app_url => 'http://localhost:3000',
+  },
+
+  # Frontend Configuration
+  frontend => {
+    # API Base URL for frontend to use
+
+    # *** DEVELOPMENT *** (without reverse proxy): Use full backend URL
+    api_base_url => 'http://localhost:3002/api',
+	
+    # *** PRODUCTION *** (with reverse proxy): Use relative path
+    # api_base_url => '/api',
+    
+    # Application name and version
+    app_name => 'XBillr',
+    app_version => '0.5',
+    
+    # Idle timeout in minutes; user is logged out after this period of inactivity (0 = disabled)
+    session_idle_timeout_minutes => 300,
+  },
+}
+

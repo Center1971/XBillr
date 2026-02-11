@@ -14,6 +14,14 @@ use Digest::SHA qw(sha256);
 use MIME::Base64 qw(encode_base64url);
 use Crypt::JWT qw(encode_jwt);
 
+sub _effective_redirect_uri {
+    my ($iam, $client) = @_;
+    my $base = $iam->{api_public_base_url};
+    return $client->{redirect_uri} || '' unless $base;
+    $base =~ s{/$}{};
+    return $base . '/auth/oidc/callback';
+}
+
 sub login {
     my $c = shift;
     
@@ -41,10 +49,11 @@ sub login {
     $c->session(oidc_return_to => $c->param('return_to') || '/');
     $c->session(oidc_client => 'web');
 
+    my $redirect_uri = _effective_redirect_uri($iam, $client);
     my %query = (
         response_type => 'code',
         client_id => $client->{client_id} || '',
-        redirect_uri => $client->{redirect_uri} || '',
+        redirect_uri => $redirect_uri,
         scope => $scopes,
         state => $state,
         nonce => $nonce,
@@ -78,10 +87,11 @@ sub oidc_login {
     $c->session(oidc_return_to => $c->param('return_to') || '/');
     $c->session(oidc_client => $client_type);
 
+    my $redirect_uri = _effective_redirect_uri($iam, $client);
     my %query = (
         response_type => 'code',
         client_id => $client->{client_id} || '',
-        redirect_uri => $client->{redirect_uri} || '',
+        redirect_uri => $redirect_uri,
         scope => $scopes,
         state => $state,
         nonce => $nonce,
@@ -124,7 +134,7 @@ sub oidc_callback {
 
     my $client_id = $client->{client_id} || '';
     my $client_secret = $client->{client_secret} || '';
-    my $redirect_uri = $client->{redirect_uri} || '';
+    my $redirect_uri = _effective_redirect_uri($iam, $client);
     my $private_key_pem = $client->{private_key_pem} || '';
 
     unless ($client_id && $redirect_uri) {
@@ -169,7 +179,20 @@ sub oidc_callback {
     }
 
     my $ua = _oidc_user_agent($iam);
-    my $res = $ua->post($token_url => form => \%form)->result;
+    my $res;
+    eval {
+        $res = $ua->post($token_url => form => \%form)->result;
+    };
+    if (my $err = $@) {
+        $c->app->log->error("OIDC token exchange request failed: $err");
+        my $hint = $err =~ /Can't resolve|Name or service not known|getaddrinfo failed/i
+            ? ' (IAM-Host nicht auflösbar – prüfen Sie DNS/Netzwerk auf dem Server)'
+            : '';
+        return $c->render(
+            json => { error => "Token-Endpoint nicht erreichbar$hint" },
+            status => 502
+        );
+    }
 
     unless ($res->is_success) {
         my $status = $res->code || 'unknown';
@@ -276,7 +299,7 @@ sub oidc_logout {
 
     $c->session(expires => 1);
     $c->session(oidc => undef);
-    $c->render(openapi => { success => 1, message => 'Abmeldung erfolgreich' }, status => 200);
+    $c->render(json => { success => 1, message => 'Abmeldung erfolgreich' }, status => 200);
 }
 
 sub _oidc_user_agent {
@@ -316,85 +339,84 @@ sub logout {
 sub me {
     my $c = shift;
     
-    eval {
-        # Check for OIDC session first (BFF pattern)
-        my $user_info = $c->session('user_info');
+    # Check for OIDC session first (BFF pattern)
+    my $user_info = $c->session('user_info');
+    
+    if ($user_info) {
+        # Session-authenticated user
+        my @roles = map { { name => $_ } } @{$user_info->{roles} || []};
         
-        if ($user_info) {
-            # Session-authenticated user
-            my @roles = map { { name => $_ } } @{$user_info->{roles} || []};
-            
-            $c->render(json => {
-                id => $user_info->{sub},
-                username => $user_info->{username},
-                email => $user_info->{email},
-                firstName => $user_info->{given_name} || '',
-                lastName => $user_info->{family_name} || '',
-                roles => \@roles,
-                permissions => [],
-                groups => $user_info->{groups} || [],
-            }, status => 200);
-            return;
-        }
-        
-        # Fall back to auth_user from middleware (Bearer token auth)
-        my $auth_user = $c->stash('auth_user');
-        
-        if ($auth_user && $auth_user->{type} && $auth_user->{type} eq 'oidc') {
-            # OIDC Bearer token authentication
-            my @roles = map { { name => $_ } } @{$auth_user->{roles} || []};
-            
-            $c->render(json => {
-                id => $auth_user->{subject},
-                username => $auth_user->{username},
-                email => $auth_user->{email},
-                firstName => $auth_user->{claims}->{given_name} || '',
-                lastName => $auth_user->{claims}->{family_name} || '',
-                roles => \@roles,
-                permissions => [],
-                groups => $auth_user->{groups} || [],
-            }, status => 200);
-            return;
-        }
-        
-        # Legacy database authentication
-        my $user = $c->stash('current_user');
-        
-        unless ($user) {
-            return $c->render(json => { error => 'Nicht authentifiziert' }, status => 401);
-        }
-        
-        my $schema = $c->app->schema;
-        my $auth_service = XBillr::Service::AuthService->new(schema => $schema);
-        my $permissions = $auth_service->get_user_permissions($user);
-        
-        # Lade Rollen
-        my @roles = ();
-        my $user_roles = $schema->resultset('UserRole')->search({
-            user_id => $user->id,
-        });
-        while (my $ur = $user_roles->next) {
-            push @roles, {
-                id => $ur->role->id,
-                name => $ur->role->name,
-                description => $ur->role->description,
-            };
-        }
-        
-        $c->render(json => {
-            id => $user->id,
-            username => $user->username,
-            email => $user->email,
-            firstName => $user->first_name,
-            lastName => $user->last_name,
+        return $c->render(json => {
+            id => $user_info->{sub},
+            username => $user_info->{username},
+            email => $user_info->{email},
+            firstName => $user_info->{given_name} || '',
+            lastName => $user_info->{family_name} || '',
             roles => \@roles,
-            permissions => $permissions,
+            permissions => [],
+            groups => $user_info->{groups} || [],
         }, status => 200);
-    } or do {
-        my $error = $@ || 'Unbekannter Fehler';
-        $c->app->log->error("Me error: $error");
-        $c->render(json => { error => 'Fehler beim Laden der Benutzerdaten' }, status => 500);
-    };
+    }
+    
+    # Fall back to auth_user from middleware (Bearer token auth)
+    my $auth_user = $c->stash('auth_user');
+    
+    if ($auth_user && $auth_user->{type} && $auth_user->{type} eq 'oidc') {
+        # OIDC Bearer token authentication
+        my @roles = map { { name => $_ } } @{$auth_user->{roles} || []};
+        
+        return $c->render(json => {
+            id => $auth_user->{subject},
+            username => $auth_user->{username},
+            email => $auth_user->{email},
+            firstName => $auth_user->{claims}->{given_name} || '',
+            lastName => $auth_user->{claims}->{family_name} || '',
+            roles => \@roles,
+            permissions => [],
+            groups => $auth_user->{groups} || [],
+        }, status => 200);
+    }
+    
+    # Legacy database authentication (only if no OIDC session/token)
+    my $user = $c->stash('current_user');
+    
+    if ($user) {
+        eval {
+            my $schema = $c->app->schema;
+            my $auth_service = XBillr::Service::AuthService->new(schema => $schema);
+            my $permissions = $auth_service->get_user_permissions($user);
+            
+            # Lade Rollen
+            my @roles = ();
+            my $user_roles = $schema->resultset('UserRole')->search({
+                user_id => $user->id,
+            });
+            while (my $ur = $user_roles->next) {
+                push @roles, {
+                    id => $ur->role->id,
+                    name => $ur->role->name,
+                    description => $ur->role->description,
+                };
+            }
+            
+            return $c->render(json => {
+                id => $user->id,
+                username => $user->username,
+                email => $user->email,
+                firstName => $user->first_name,
+                lastName => $user->last_name,
+                roles => \@roles,
+                permissions => $permissions,
+            }, status => 200);
+        } or do {
+            my $error = $@ || 'Unbekannter Fehler';
+            $c->app->log->error("Me error (legacy auth): $error");
+            return $c->render(json => { error => 'Fehler beim Laden der Benutzerdaten' }, status => 500);
+        };
+    }
+    
+    # Not authenticated
+    return $c->render(json => { error => 'Nicht authentifiziert' }, status => 401);
 }
 
 sub _random_bytes {

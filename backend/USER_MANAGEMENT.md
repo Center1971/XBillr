@@ -159,7 +159,7 @@ Rechte werden über Rollen verwaltet:
 ### E-Mail-Versand funktioniert nicht
 
 1. Überprüfen Sie die SMTP-Konfiguration
-2. Prüfen Sie die Logs: `tail -f backend/log/development.log`
+2. Prüfen Sie die Logs: `tail -f logs/xbillr.log`
 3. Verwenden Sie die Passwort-Anzeige im Admin-Interface als Fallback
 
 ### Benutzer kann sich nicht anmelden

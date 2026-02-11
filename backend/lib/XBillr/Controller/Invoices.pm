@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Mojo::Base 'Mojolicious::Controller';
 use XBillr::Service::InvoiceService;
+use XBillr::Service::PlanService;
 
 sub list {
     my $c = shift;
@@ -32,9 +33,9 @@ sub list {
             push @result, $c->_invoice_to_hash($invoice);
         }
         
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
-        $c->render(openapi => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
+        $c->render(json => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
     };
 }
 
@@ -59,9 +60,9 @@ sub list_archived {
             push @result, $c->_invoice_to_hash($invoice);
         }
         
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
-        $c->render(openapi => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
+        $c->render(json => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
     };
 }
 
@@ -105,11 +106,11 @@ sub open_posts {
             };
         }
 
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error listing open posts: $error");
-        $c->render(openapi => { error => 'Die offenen Posten konnten nicht geladen werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Die offenen Posten konnten nicht geladen werden.', details => "$error" }, status => 500);
     };
 }
 
@@ -132,13 +133,31 @@ sub create {
         
         my $schema = $c->app->schema;
         my $auth_user = $c->auth_user || {};
+        my $tenant = undef;
         if (($auth_user->{type} || '') eq 'oidc') {
             return unless $c->require_tenant;
+            $tenant = $c->current_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             unless (@$tenant_ids && grep { $_ eq $data->{customerId} } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
+        
+        # Plan enforcement: check invoice limit
+        if ($tenant) {
+            my $plan_service = XBillr::Service::PlanService->new;
+            my $plan = $c->current_tenant_plan;
+            my $invoice_count = $schema->resultset('Invoice')->search({
+                tenant => $tenant,
+            })->count;
+            my $limit_check = $plan_service->check_limit($plan, 'invoices', $invoice_count);
+            unless ($limit_check->{allowed}) {
+                return $c->render(json => { 
+                    error => "Rechnungslimit des aktuellen Tarifs ($plan) erreicht. Aktuell: $invoice_count, Limit: $limit_check->{limit}" 
+                }, status => 403);
+            }
+        }
+        
         my $service = XBillr::Service::InvoiceService->new(
             schema => $schema
         );
@@ -151,21 +170,22 @@ sub create {
             tax_type => $data->{taxType},
             payment_terms => $data->{paymentTerms},
             include_timesheet => $data->{includeTimesheet} // 0,
+            tenant => $tenant,
         });
         
         # Sicherheits-Logging
         $c->app->log->info("Invoice created: " . $invoice->id);
         
-        $c->render(openapi => $c->_invoice_to_hash($invoice), status => 201);
+        $c->render(json => $c->_invoice_to_hash($invoice), status => 201);
     } or do {
         my $error = $@;
         $c->app->log->error("Error creating invoice: $error");
         
         # Generische Fehlermeldungen ohne interne Details
         if ($error =~ /nicht gefunden/ || $error =~ /Keine Zeiteinträge/) {
-            $c->render(openapi => { error => 'Die Rechnung konnte nicht erstellt werden. Bitte überprüfen Sie, ob alle erforderlichen Daten vorhanden sind.' }, status => 400);
+            $c->render(json => { error => 'Die Rechnung konnte nicht erstellt werden. Bitte überprüfen Sie, ob alle erforderlichen Daten vorhanden sind.' }, status => 400);
         } else {
-            $c->render(openapi => { error => 'Die Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.' }, status => 500);
+            $c->render(json => { error => 'Die Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.' }, status => 500);
         }
     };
 }
@@ -182,7 +202,7 @@ sub get {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
         
@@ -207,12 +227,12 @@ sub get {
                 };
             }
             
-            $c->render(openapi => $result, status => 200);
+            $c->render(json => $result, status => 200);
         } else {
-            $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+            $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
         }
     } or do {
-        $c->render(openapi => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
+        $c->render(json => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
     };
 }
 
@@ -229,7 +249,7 @@ sub update {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
         
@@ -249,12 +269,12 @@ sub update {
                 due_date => $data->{dueDate},
             });
             
-            $c->render(openapi => $c->_invoice_to_hash($invoice), status => 200);
+            $c->render(json => $c->_invoice_to_hash($invoice), status => 200);
         } else {
-            $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+            $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
         }
     } or do {
-        $c->render(openapi => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
+        $c->render(json => { error => 'Die Daten konnten nicht verarbeitet werden. Bitte versuchen Sie es später erneut.' }, status => 500);
     };
 }
 
@@ -271,7 +291,7 @@ sub xml {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die XML-Datei konnte nicht generiert werden.' }, status => 404);
+                return $c->render(json => { error => 'Die XML-Datei konnte nicht generiert werden.' }, status => 404);
             }
         }
         my $service = XBillr::Service::XRechnungService->new(schema => $schema);
@@ -288,7 +308,7 @@ sub xml {
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error generating XML: $error");
-        $c->render(openapi => { error => 'Die XML-Datei konnte nicht generiert werden.' }, status => 500);
+        $c->render(json => { error => 'Die XML-Datei konnte nicht generiert werden.' }, status => 500);
     };
 }
 
@@ -306,7 +326,7 @@ sub pdf {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die PDF-Datei konnte nicht generiert werden.' }, status => 404);
+                return $c->render(json => { error => 'Die PDF-Datei konnte nicht generiert werden.' }, status => 404);
             }
         }
         my $service = XBillr::Service::PDFService->new(schema => $schema);
@@ -319,7 +339,7 @@ sub pdf {
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error generating PDF: $error");
-        $c->render(openapi => { error => 'Die PDF-Datei konnte nicht generiert werden.' }, status => 500);
+        $c->render(json => { error => 'Die PDF-Datei konnte nicht generiert werden.' }, status => 500);
     };
 }
 
@@ -331,7 +351,7 @@ sub correct {
         my $data = $c->req->json;
 
         unless ($id) {
-            return $c->render(openapi => { error => 'Rechnungs-ID fehlt.' }, status => 400);
+            return $c->render(json => { error => 'Rechnungs-ID fehlt.' }, status => 400);
         }
 
         my $schema = $c->app->schema;
@@ -341,16 +361,16 @@ sub correct {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $original_invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
 
         unless ($original_invoice) {
-            return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+            return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
         }
 
         unless ($original_invoice->archived) {
-            return $c->render(openapi => { error => 'Nur archivierte Rechnungen können korrigiert werden.' }, status => 400);
+            return $c->render(json => { error => 'Nur archivierte Rechnungen können korrigiert werden.' }, status => 400);
         }
 
         my $service = XBillr::Service::InvoiceService->new(schema => $schema);
@@ -398,7 +418,7 @@ sub correct {
 
         $c->app->log->info("Invoice corrected: $id -> " . $new_invoice->id . " ($corrected_number)");
 
-        $c->render(openapi => {
+        $c->render(json => {
             id => $new_invoice->id,
             invoiceNumber => $corrected_number,
             message => 'Korrektur-Rechnung erfolgreich erstellt'
@@ -407,9 +427,9 @@ sub correct {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error creating corrected invoice: $error");
         if ($error =~ /nicht gefunden/ || $error =~ /Keine Zeiteinträge/) {
-            $c->render(openapi => { error => 'Die Korrektur-Rechnung konnte nicht erstellt werden. Bitte überprüfen Sie, ob alle erforderlichen Daten vorhanden sind.' }, status => 400);
+            $c->render(json => { error => 'Die Korrektur-Rechnung konnte nicht erstellt werden. Bitte überprüfen Sie, ob alle erforderlichen Daten vorhanden sind.' }, status => 400);
         } else {
-            $c->render(openapi => { error => 'Die Korrektur-Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.' }, status => 500);
+            $c->render(json => { error => 'Die Korrektur-Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.' }, status => 500);
         }
     };
 }
@@ -428,7 +448,7 @@ sub delete {
         my $id = $c->stash('id') || $c->param('id');
         
         unless ($id) {
-            return $c->render(openapi => { error => 'Rechnungs-ID fehlt.' }, status => 400);
+            return $c->render(json => { error => 'Rechnungs-ID fehlt.' }, status => 400);
         }
         
         my $schema = $c->app->schema;
@@ -436,12 +456,12 @@ sub delete {
         if ($invoice && ($auth_user->{type} || '') eq 'oidc') {
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
         
         unless ($invoice) {
-            return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+            return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
         }
         
         # Lösche zuerst alle Invoice Items (Cascade Delete)
@@ -462,12 +482,12 @@ sub delete {
         # Sicherheits-Logging
         $c->app->log->info("Invoice deleted: " . $id);
         
-        $c->render(openapi => { message => 'Rechnung erfolgreich gelöscht' }, status => 200);
+        $c->render(json => { message => 'Rechnung erfolgreich gelöscht' }, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error deleting invoice: $error");
         $c->app->log->error("Stack trace: " . $error->can('as_string') ? $error->as_string : $error);
-        $c->render(openapi => { error => 'Die Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Die Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.', details => "$error" }, status => 500);
     };
 }
 
@@ -483,7 +503,7 @@ sub archive {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
         my $service = XBillr::Service::InvoiceService->new(
@@ -491,13 +511,13 @@ sub archive {
         );
         
         $service->archive_invoice($id);
-        $c->render(openapi => { message => 'Rechnung erfolgreich archiviert' }, status => 200);
+        $c->render(json => { message => 'Rechnung erfolgreich archiviert' }, status => 200);
     } or do {
         my $error = $@;
         if ($error =~ /nicht gefunden/) {
-            $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+            $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
         } else {
-            $c->render(openapi => { error => 'Die Rechnung konnte nicht archiviert werden. Bitte versuchen Sie es erneut.', details => "$error" }, status => 500);
+            $c->render(json => { error => 'Die Rechnung konnte nicht archiviert werden. Bitte versuchen Sie es erneut.', details => "$error" }, status => 500);
         }
     };
 }
@@ -514,7 +534,7 @@ sub unarchive {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
         my $service = XBillr::Service::InvoiceService->new(
@@ -522,13 +542,13 @@ sub unarchive {
         );
         
         $service->unarchive_invoice($id);
-        $c->render(openapi => { message => 'Rechnung erfolgreich dearchiviert' }, status => 200);
+        $c->render(json => { message => 'Rechnung erfolgreich dearchiviert' }, status => 200);
     } or do {
         my $error = $@;
         if ($error =~ /nicht gefunden/) {
-            $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+            $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
         } else {
-            $c->render(openapi => { error => 'Die Rechnung konnte nicht dearchiviert werden. Bitte versuchen Sie es erneut.', details => "$error" }, status => 500);
+            $c->render(json => { error => 'Die Rechnung konnte nicht dearchiviert werden. Bitte versuchen Sie es erneut.', details => "$error" }, status => 500);
         }
     };
 }
@@ -545,7 +565,7 @@ sub duplicate {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $invoice->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
+                return $c->render(json => { error => 'Die angeforderte Rechnung wurde nicht gefunden.' }, status => 404);
             }
         }
         my $service = XBillr::Service::InvoiceService->new(
@@ -570,13 +590,13 @@ sub duplicate {
             };
         }
         
-        $c->render(openapi => $result, status => 200);
+        $c->render(json => $result, status => 200);
     } or do {
         my $error = $@;
         if ($error =~ /nicht gefunden/ || $error =~ /Nur archivierte/) {
-            $c->render(openapi => { error => $error }, status => 400);
+            $c->render(json => { error => $error }, status => 400);
         } else {
-            $c->render(openapi => { error => $error }, status => 500);
+            $c->render(json => { error => $error }, status => 500);
         }
     };
 }

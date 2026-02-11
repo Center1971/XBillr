@@ -19,6 +19,7 @@ sub frontend {
         appName => $frontend_config->{app_name} || 'XBillr',
         appVersion => $frontend_config->{app_version} || $XBillr::Version::VERSION,
         frontendUrl => $iam_config->{frontend_url} || 'http://localhost:8082',
+        sessionIdleTimeoutMinutes => $frontend_config->{session_idle_timeout_minutes} // 30,
         # Add other safe config values as needed
     }, status => 200);
 }

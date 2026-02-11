@@ -95,6 +95,11 @@ __PACKAGE__->add_columns(
         datetime_undef_if_invalid => 1,
         is_nullable => 0,
     },
+    tenant => {
+        data_type => 'varchar',
+        size => 255,
+        is_nullable => 1,
+    },
 );
 
 __PACKAGE__->set_primary_key('id');

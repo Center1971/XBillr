@@ -1,2 +1,4 @@
+eu/smetools/keycloak/CompanyFormAction.class
 eu/smetools/keycloak/CompanyProvisionerEventListenerProviderFactory.class
 eu/smetools/keycloak/CompanyProvisionerEventListenerProvider.class
+eu/smetools/keycloak/CompanyFormActionFactory.class

@@ -19,6 +19,10 @@ use XBillr::Model::DB::Permission;
 use XBillr::Model::DB::UserRole;
 use XBillr::Model::DB::RolePermission;
 use XBillr::Model::DB::UserSession;
+use XBillr::Model::DB::Tenant;
+use XBillr::Model::DB::Country;
+use XBillr::Model::DB::Currency;
+use XBillr::Model::DB::Address;
 
 # Klassen explizit registrieren
 __PACKAGE__->register_class('Customer', 'XBillr::Model::DB::Customer');
@@ -35,6 +39,10 @@ __PACKAGE__->register_class('Permission', 'XBillr::Model::DB::Permission');
 __PACKAGE__->register_class('UserRole', 'XBillr::Model::DB::UserRole');
 __PACKAGE__->register_class('RolePermission', 'XBillr::Model::DB::RolePermission');
 __PACKAGE__->register_class('UserSession', 'XBillr::Model::DB::UserSession');
+__PACKAGE__->register_class('Tenant', 'XBillr::Model::DB::Tenant');
+__PACKAGE__->register_class('Country', 'XBillr::Model::DB::Country');
+__PACKAGE__->register_class('Currency', 'XBillr::Model::DB::Currency');
+__PACKAGE__->register_class('Address', 'XBillr::Model::DB::Address');
 
 __PACKAGE__->load_namespaces(
     default_resultset_class => '+XBillr::Model::ResultSet',

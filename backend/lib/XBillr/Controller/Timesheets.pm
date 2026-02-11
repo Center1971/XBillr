@@ -45,11 +45,11 @@ sub list {
             };
         }
 
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error listing timesheets: $error");
-        $c->render(openapi => { error => 'Die Stundenzettel konnten nicht geladen werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Die Stundenzettel konnten nicht geladen werden.', details => "$error" }, status => 500);
     };
 }
 
@@ -65,12 +65,12 @@ sub pdf {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $timesheet->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
             }
         }
 
         unless ($timesheet) {
-            return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+            return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
         }
 
         my $customer = $timesheet->customer;
@@ -83,7 +83,7 @@ sub pdf {
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error getting timesheet PDF: $error");
-        $c->render(openapi => { error => 'Die Stundenzettel-PDF konnte nicht geladen werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Die Stundenzettel-PDF konnte nicht geladen werden.', details => "$error" }, status => 500);
     };
 }
 
@@ -99,12 +99,12 @@ sub archive {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $timesheet->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
             }
         }
 
         unless ($timesheet) {
-            return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+            return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
         }
 
         $timesheet->update({
@@ -112,11 +112,11 @@ sub archive {
             archived_at => DateTime->now->strftime('%Y-%m-%d %H:%M:%S'),
         });
 
-        $c->render(openapi => { success => 1, message => 'Stundenzettel erfolgreich archiviert' }, status => 200);
+        $c->render(json => { success => 1, message => 'Stundenzettel erfolgreich archiviert' }, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error archiving timesheet: $error");
-        $c->render(openapi => { error => 'Der Stundenzettel konnte nicht archiviert werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Der Stundenzettel konnte nicht archiviert werden.', details => "$error" }, status => 500);
     };
 }
 
@@ -132,12 +132,12 @@ sub unarchive {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $timesheet->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
             }
         }
 
         unless ($timesheet) {
-            return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+            return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
         }
 
         $timesheet->update({
@@ -145,11 +145,11 @@ sub unarchive {
             archived_at => undef,
         });
 
-        $c->render(openapi => { success => 1, message => 'Stundenzettel erfolgreich dearchiviert' }, status => 200);
+        $c->render(json => { success => 1, message => 'Stundenzettel erfolgreich dearchiviert' }, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error unarchiving timesheet: $error");
-        $c->render(openapi => { error => 'Der Stundenzettel konnte nicht dearchiviert werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Der Stundenzettel konnte nicht dearchiviert werden.', details => "$error" }, status => 500);
     };
 }
 
@@ -165,20 +165,20 @@ sub delete {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $timesheet->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
             }
         }
 
         unless ($timesheet) {
-            return $c->render(openapi => { error => 'Stundenzettel nicht gefunden' }, status => 404);
+            return $c->render(json => { error => 'Stundenzettel nicht gefunden' }, status => 404);
         }
 
         $timesheet->delete;
-        $c->render(openapi => { success => 1, message => 'Stundenzettel erfolgreich gelöscht' }, status => 200);
+        $c->render(json => { success => 1, message => 'Stundenzettel erfolgreich gelöscht' }, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error deleting timesheet: $error");
-        $c->render(openapi => { error => 'Der Stundenzettel konnte nicht gelöscht werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Der Stundenzettel konnte nicht gelöscht werden.', details => "$error" }, status => 500);
     };
 }
 

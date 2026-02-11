@@ -53,11 +53,11 @@ sub get_by_week {
             };
         }
         
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in get_by_week: $error");
-        $c->render(openapi => { error => 'Fehler beim Laden der Zeiteinträge', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Laden der Zeiteinträge', details => "$error" }, status => 500);
     };
 }
 
@@ -105,11 +105,11 @@ sub get_by_month {
             };
         }
         
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in get_by_month: $error");
-        $c->render(openapi => { error => 'Fehler beim Laden der Zeiteinträge', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Laden der Zeiteinträge', details => "$error" }, status => 500);
     };
 }
 
@@ -125,12 +125,12 @@ sub get {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $entry->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
             }
         }
 
         if ($entry) {
-            $c->render(openapi => {
+            $c->render(json => {
                 id => $entry->id,
                 customerId => $entry->customer_id,
                 hourlyRateId => $entry->hourly_rate_id,
@@ -142,12 +142,12 @@ sub get {
                 createdAt => $entry->created_at,
             }, status => 200);
         } else {
-            $c->render(openapi => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
+            $c->render(json => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
         }
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in get time entry by id: $error");
-        $c->render(openapi => { error => 'Fehler beim Laden des Zeiteintrags', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Laden des Zeiteintrags', details => "$error" }, status => 500);
     };
 }
 
@@ -162,7 +162,7 @@ sub create {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             unless (@$tenant_ids && grep { $_ eq $data->{customerId} } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
         
@@ -172,7 +172,7 @@ sub create {
         if (!$hourly_rate) {
             my $customer = $schema->resultset('Customer')->find($data->{customerId});
             if (!$customer) {
-                return $c->render(openapi => { error => 'Kunde nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Kunde nicht gefunden' }, status => 404);
             }
 
             my $today = DateTime->now->ymd;
@@ -254,7 +254,7 @@ sub create {
             created_at => DateTime->now->strftime('%Y-%m-%d %H:%M:%S'),
         });
         
-        $c->render(openapi => {
+        $c->render(json => {
             id => $entry->id,
             customerId => $entry->customer_id,
             hourlyRateId => $entry->hourly_rate_id,
@@ -266,7 +266,7 @@ sub create {
             createdAt => $entry->created_at,
         }, status => 201);
     } or do {
-        $c->render(openapi => { error => $@ }, status => 500);
+        $c->render(json => { error => $@ }, status => 500);
     };
 }
 
@@ -283,10 +283,10 @@ sub update {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $entry->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
             }
             unless (@$tenant_ids && grep { $_ eq $data->{customerId} } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
         
@@ -305,7 +305,7 @@ sub update {
                 year => $year,
             });
             
-            $c->render(openapi => {
+            $c->render(json => {
                 id => $entry->id,
                 customerId => $entry->customer_id,
                 hourlyRateId => $entry->hourly_rate_id,
@@ -317,10 +317,10 @@ sub update {
                 createdAt => $entry->created_at,
             }, status => 200);
         } else {
-            $c->render(openapi => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
+            $c->render(json => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
         }
     } or do {
-        $c->render(openapi => { error => $@ }, status => 500);
+        $c->render(json => { error => $@ }, status => 500);
     };
 }
 
@@ -336,18 +336,18 @@ sub delete {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $entry->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
             }
         }
         
         if ($entry) {
             $entry->delete;
-            $c->render(openapi => {}, status => 204);
+            $c->render(json => {}, status => 204);
         } else {
-            $c->render(openapi => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
+            $c->render(json => { error => 'Zeiteintrag nicht gefunden' }, status => 404);
         }
     } or do {
-        $c->render(openapi => { error => $@ }, status => 500);
+        $c->render(json => { error => $@ }, status => 500);
     };
 }
 
@@ -362,7 +362,7 @@ sub timesheet_pdf {
         my $archive = $c->param('archive') || 0;
 
         unless ($customer_id && $date_from && $date_to) {
-            return $c->render(openapi => { error => 'Kunden-ID, Datum von und Datum bis müssen angegeben werden.' }, status => 400);
+            return $c->render(json => { error => 'Kunden-ID, Datum von und Datum bis müssen angegeben werden.' }, status => 400);
         }
 
         my $schema = $c->app->schema;
@@ -371,7 +371,7 @@ sub timesheet_pdf {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             unless (@$tenant_ids && grep { $_ eq $customer_id } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
         my $service = XBillr::Service::PDFService->new(schema => $schema);
@@ -399,7 +399,7 @@ sub timesheet_pdf {
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error generating timesheet PDF: $error");
-        $c->render(openapi => { error => 'Die Stundenzettel-PDF konnte nicht generiert werden.', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Die Stundenzettel-PDF konnte nicht generiert werden.', details => "$error" }, status => 500);
     };
 }
 

@@ -19,7 +19,7 @@ sub generate_xrechnung_xml {
     die "Kunde nicht gefunden" unless $customer;
     
     my $supplier = $schema->resultset('Supplier')->first;
-    die "Rechnungssteller nicht gefunden" unless $supplier;
+    die "Rechnungsempfänger nicht gefunden" unless $supplier;
     
     my $items_rs = $schema->resultset('InvoiceItem')->search({ invoice_id => $invoice_id });
     

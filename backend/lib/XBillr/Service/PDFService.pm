@@ -43,7 +43,7 @@ sub generate_invoice_pdf {
     die "Kunde nicht gefunden" unless $customer;
     
     my $supplier = $schema->resultset('Supplier')->first;
-    die "Rechnungssteller nicht gefunden" unless $supplier;
+    die "Rechnungsempfänger nicht gefunden" unless $supplier;
     
     # Prüfe ob Reverse Charge aktiv ist
     my $reverse_charge = $customer->reverse_charge || 0;
@@ -66,7 +66,7 @@ sub generate_invoice_pdf {
     my $page_height = 842; # A4 height in points
     my $footer_y = 50; # Position für Fußzeile
     
-    # Header: Rechnungssteller (rechts oben)
+    # Header: Rechnungsempfänger (rechts oben)
     $text->font($font_helvetica_bold, 14);
     my $supplier_name_width = $text->advancewidth($supplier->name);
     $text->translate($page_width - $margin - $supplier_name_width, $y);
@@ -431,7 +431,7 @@ sub generate_timesheet_pdf {
     die "Kunde nicht gefunden" unless $customer;
     
     my $supplier = $schema->resultset('Supplier')->first;
-    die "Rechnungssteller nicht gefunden" unless $supplier;
+    die "Rechnungsempfänger nicht gefunden" unless $supplier;
     
     # Lade Zeiteinträge für den Zeitraum
     my $time_entries_rs = $schema->resultset('TimeEntry')->search({
@@ -465,7 +465,7 @@ sub generate_timesheet_pdf {
     my $page_height = 595; # A4 Querformat Höhe in points
     my $footer_y = 50;
     
-    # Header: Rechnungssteller (rechts oben)
+    # Header: Rechnungsempfänger (rechts oben)
     $text->font($font_helvetica_bold, 14);
     my $supplier_name_width = $text->advancewidth($supplier->name);
     $text->translate($page_width - $margin - $supplier_name_width, $y);

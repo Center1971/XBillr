@@ -23,7 +23,7 @@ sub get_by_customer {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             unless (@$tenant_ids && grep { $_ eq $customer_id } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
         my $today = DateTime->now->ymd;
@@ -135,11 +135,11 @@ sub get_by_customer {
             }
         }
         
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in get_by_customer: $error");
-        $c->render(openapi => { error => 'Fehler beim Laden der Stundensätze', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Laden der Stundensätze', details => "$error" }, status => 500);
     };
 }
 
@@ -154,7 +154,7 @@ sub create {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             unless (@$tenant_ids && grep { $_ eq $data->{customerId} } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
         
@@ -169,7 +169,7 @@ sub create {
             created_at => DateTime->now->strftime('%Y-%m-%d %H:%M:%S'),
         });
         
-        $c->render(openapi => {
+        $c->render(json => {
             id => $rate->id,
             customerId => $rate->customer_id,
             rate => $rate->rate,
@@ -180,7 +180,7 @@ sub create {
             createdAt => $rate->created_at,
         }, status => 201);
     } or do {
-        $c->render(openapi => { error => $@, details => $@ }, status => 500);
+        $c->render(json => { error => $@, details => $@ }, status => 500);
     };
 }
 
@@ -202,12 +202,12 @@ sub get {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $rate->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundensatz nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundensatz nicht gefunden' }, status => 404);
             }
         }
         
         if ($rate) {
-            $c->render(openapi => {
+            $c->render(json => {
                 id => $rate->id,
                 customerId => $rate->customer_id,
                 rate => $rate->rate,
@@ -218,12 +218,12 @@ sub get {
                 createdAt => $rate->created_at,
             }, status => 200);
         } else {
-            $c->render(openapi => { error => 'Stundensatz nicht gefunden' }, status => 404);
+            $c->render(json => { error => 'Stundensatz nicht gefunden' }, status => 404);
         }
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in HourlyRates::get: $error");
-        $c->render(openapi => { error => 'Fehler beim Laden des Stundensatzes', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Laden des Stundensatzes', details => "$error" }, status => 500);
     };
 }
 
@@ -246,10 +246,10 @@ sub update {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $rate->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundensatz nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundensatz nicht gefunden' }, status => 404);
             }
             unless (@$tenant_ids && grep { $_ eq $data->{customerId} } @$tenant_ids) {
-                return $c->render(openapi => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
+                return $c->render(json => { error => 'Tenant-Zuordnung stimmt nicht' }, status => 403);
             }
         }
         
@@ -263,7 +263,7 @@ sub update {
                 valid_to => $data->{validTo},
             });
             
-            $c->render(openapi => {
+            $c->render(json => {
                 id => $rate->id,
                 customerId => $rate->customer_id,
                 rate => $rate->rate,
@@ -274,12 +274,12 @@ sub update {
                 createdAt => $rate->created_at,
             }, status => 200);
         } else {
-            $c->render(openapi => { error => 'Stundensatz nicht gefunden' }, status => 404);
+            $c->render(json => { error => 'Stundensatz nicht gefunden' }, status => 404);
         }
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in HourlyRates::update: $error");
-        $c->render(openapi => { error => 'Fehler beim Aktualisieren des Stundensatzes', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Aktualisieren des Stundensatzes', details => "$error" }, status => 500);
     };
 }
 
@@ -301,20 +301,20 @@ sub delete {
             return unless $c->require_tenant;
             my $tenant_ids = $c->tenant_customer_ids;
             if (@$tenant_ids && !(grep { $_ eq $rate->customer_id } @$tenant_ids)) {
-                return $c->render(openapi => { error => 'Stundensatz nicht gefunden' }, status => 404);
+                return $c->render(json => { error => 'Stundensatz nicht gefunden' }, status => 404);
             }
         }
         
         if ($rate) {
             $rate->delete;
-            $c->render(openapi => {}, status => 204);
+            $c->render(json => {}, status => 204);
         } else {
-            $c->render(openapi => { error => 'Stundensatz nicht gefunden' }, status => 404);
+            $c->render(json => { error => 'Stundensatz nicht gefunden' }, status => 404);
         }
     } or do {
         my $error = $@ || 'Unbekannter Fehler';
         $c->app->log->error("Error in HourlyRates::delete: $error");
-        $c->render(openapi => { error => 'Fehler beim Löschen des Stundensatzes', details => "$error" }, status => 500);
+        $c->render(json => { error => 'Fehler beim Löschen des Stundensatzes', details => "$error" }, status => 500);
     };
 }
 

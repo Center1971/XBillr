@@ -1,0 +1,151 @@
+id,alpha3,numeric,currency_sign,name_de,name_en
+1,AED,784,د.إ,Vereinigte Arabische Emirate Dirham,United Arab Emirates Dirham
+2,AFN,971,؋,Afghanischer Afghani,Afghan Afghani
+3,ALL,8,L,Albanischer Lek,Albanian Lek
+4,AMD,51,֏,Armenischer Dram,Armenian Dram
+5,ANG,532,ƒ,Niederländische-Antillen-Gulden,Netherlands Antillean Guilder
+6,AOA,976,Kz,Angolanischer Kwanza,Angolan Kwanza
+7,ARS,36,$,Argentinischer Peso,Argentine Peso
+8,AUD,36,$,Australischer Dollar,Australian Dollar
+9,AWG,571,ƒ,Aruba-Florin,Aruban Florin
+10,AZN,944,₼,Aserbaidschan-Manat,Azerbaijani Manat
+11,BAM,977,KM,Bosnien und Herzegowina Konvertible Mark,Bosnia-Herzegovina Convertible Mark
+12,BBD,52,$,Barbados-Dollar,Barbadian Dollar
+13,BDT,50,৳,Bangladesch-Taka,Bangladeshi Taka
+14,BGN,975,лв.,Bulgarischer Lew,Bulgarian Lev
+15,BHD,48,.د.ب,Bahrain-Dinar,Bahraini Dinar
+16,BIF,108,Fr,Burundi-Franc,Burundian Franc
+17,BMD,60,$,Bermuda-Dollar,Bermudan Dollar
+18,BND,96,$,Brunei-Dollar,Brunei Dollar
+19,BOB,68,Bs.,Bolivianischer Boliviano,Bolivian Boliviano
+20,BRL,986,R$,Brasilianischer Real,Brazilian Real
+21,BSD,44,$,Bahamas-Dollar,Bahamian Dollar
+22,BTN,64,NU.,Bhutanischer Ngultrum,Bhutanese Ngultrum
+23,BWP,72,P,Botswanischer Pula,Botswanan Pula
+24,BYN,933,Br,Weißrussischer Rubel,Belarusian Ruble
+25,BZD,84,BZ$,Belize-Dollar,Belize Dollar
+26,CAD,124,$,Kanadischer Dollar,Canadian Dollar
+27,CDF,976,FC,Kongo-Franc,Congolese Franc
+28,CHF,756,CHF,Schweizer Franken,Swiss Franc
+29,CLP,152,$,Chilenischer Peso,Chilean Peso
+30,CNY,156,¥,Chinesischer Yuan Renminbi,Chinese Yuan
+31,COP,170,$,Kolumbianischer Peso,Colombian Peso
+32,CRC,188,₡,Costa-Rica-Colón,Costa Rican Colón
+33,CUC,931,$,Kubanischer Peso (konvertibel),Cuban Convertible Peso
+34,CUP,192,$,Kubanischer Peso,Cuban Peso
+35,CVE,132,$,Cabo-Verde-Escudo,Cape Verdean Escudo
+36,CZK,203,Kč,Tschechische Krone,Czech Koruna
+37,DJF,262,Fr,Dschibuti-Franc,Djiboutian Franc
+38,DKK,208,kr,Dänische Krone,Danish Krone
+39,DOP,214,$,Dominikanischer Peso,Dominican Peso
+40,DZD,12,د.ج,Algerischer Dinar,Algerian Dinar
+41,EGP,818,£,Ägyptisches Pfund,Egyptian Pound
+42,ERN,15,Nfk,Eritreischer Nakfa,Eritrean Nakfa
+43,ETB,230,Br,Äthiopischer Birr,Ethiopian Birr
+44,EUR,978,€,Euro,Euro
+45,FJD,242,$,Fidschi-Dollar,Fijian Dollar
+46,GBP,826,£,Britisches Pfund,British Pound
+47,GEL,981,ლ,Georgischer Lari,Georgian Lari
+48,GHS,936,₵,Ghanaischer Cedi,Ghanaian Cedi
+49,GIP,292,£,Gibraltar-Pfund,Gibraltar Pound
+50,GMD,270,D,Gambia-Dalasi,Gambian Dalasi
+51,GNF,324,Fr,Guinea-Franc,Guinean Franc
+52,GTQ,320,Q,Guatemaltekischer Quetzal,Guatemalan Quetzal
+53,GYD,328,$,Guyana-Dollar,Guyanese Dollar
+54,HKD,344,$,Hongkong-Dollar,Hong Kong Dollar
+55,HNL,340,L,Honduranischer Lempira,Honduran Lempira
+56,HRK,191,kn,Kroatische Kuna,Croatian Kuna
+57,HTG,332,G,Haitianische Gourde,Haitian Gourde
+58,HUF,348,Ft,Ungarischer Forint,Hungarian Forint
+59,IDR,360,Rp,Indonesische Rupiah,Indonesian Rupiah
+60,ILS,376,₪,Israelischer Schekel,Israeli New Shekel
+61,INR,356,₹,Indische Rupie,Indian Rupee
+62,IQD,368,ع.د,Irakischer Dinar,Iraqi Dinar
+63,IRR,364,﷼,Iranischer Rial,Iranian Rial
+64,ISK,352,kr,Isländische Krone,Icelandic Króna
+65,JMD,388,$,Jamaika-Dollar,Jamaican Dollar
+66,JOD,400,د.ا,Jordanischer Dinar,Jordanian Dinar
+67,JPY,392,¥,Japanischer Yen,Japanese Yen
+68,KES,404,/,Kenia-Schilling,Kenyan Shilling
+69,KGS,417,с,Kirgisischer Som,Kyrgystani Som
+70,KHR,410,៛,Kambodschanischer Riel,Cambodian Riel
+71,KMF,174,CF,Komoren-Franc,Comorian Franc
+72,KPW,408,₩,Nordkoreanischer Won,North Korean Won
+73,KRW,410,₩,Südkoreanischer Won,South Korean Won
+74,KWD,414,د.ك,Kuwait-Dinar,Kuwaiti Dinar
+75,KYD,136,$,Kaiman-Dollar,Cayman Islands Dollar
+76,KZT,398,〒,Kasachischer Tenge,Kazakhstani Tenge
+77,LAK,418,₭,Laotischer Kip,Laotian Kip
+78,LBP,422,ل.ل.,Libanesisches Pfund,Lebanese Pound
+79,LKR,144,₨,Sri-Lanka-Rupie,Sri Lankan Rupee
+80,LRD,430,$,Liberianischer Dollar,Liberian Dollar
+81,LSL,426,L,Lesothischer Loti,Lesotho Loti
+82,LYD,434,ل.د,Libyscher Dinar,Libyan Dinar
+83,MAD,504,د.م.,Marokkanischer Dirham,Moroccan Dirham
+84,MDL,498,L,Moldauischer Leu,Moldovan Leu
+85,MGA,969,Ar,Madagaskar-Ariary,Malagasy Ariary
+86,MKD,807,ден,Mazedonischer Denar,Macedonian Denar
+87,MMK,104,Ks,Myanmarischer Kyat,Myanma Kyat
+88,MNT,496,₮,Mongolischer Tögrög,Mongolian Tugrik
+89,MOP,446,P,Macau-Pataca,Macanese Pataca
+90,MRU,929,UM,Mauretanischer Ouguiya,Mauritanian Ouguiya
+91,MUR,480,₨,Mauritius-Rupie,Mauritian Rupee
+92,MVR,462,.ރ,Malediven-Rufiyaa,Maldivian Rufiyaa
+93,MWK,454,MK,Malawi-Kwacha,Malawian Kwacha
+94,MXN,484,$,Mexikanischer Peso,Mexican Peso
+95,MYR,458,RM,Malaysischer Ringgit,Malaysian Ringgit
+96,MZN,943,MT,Moçambique-Metical,Mozambican Metical
+97,NAD,516,$,Namibia-Dollar,Namibian Dollar
+98,NGN,566,₦,Nigerianischer Naira,Nigerian Naira
+99,NIO,132,C$,Nicaragua-Córdoba,Nicaraguan Córdoba
+100,NOK,578,kr,Norwegische Krone,Norwegian Krone
+101,NPR,524,₨,Nepalesische Rupie,Nepalese Rupee
+102,NZD,554,$,Neuseeland-Dollar,New Zealand Dollar
+103,OMR,512,ر.ع.,Omanischer Rial,Omani Rial
+104,PAB,590,B/.,Panamaischer Balboa,Panamanian Balboa
+105,PEN,604,S/.,Peruanischer Sol,Peruvian Sol
+106,PGK,598,K,Papua-Neuguinea-Kina,Papua New Guinean Kina
+107,PHP,608,₱,Philippinischer Peso,Philippine Peso
+108,PKR,586,₨,Pakistanische Rupie,Pakistani Rupee
+109,PLN,985,zł,Polnischer Złoty,Polish Zloty
+110,PYG,600,₲,Paraguayischer Guaraní,Paraguayan Guarani
+111,QAR,634,ر.ق,Katar-Riyal,Qatari Rial
+112,RON,946,lei,Rumänischer Leu,Romanian Leu
+113,RSD,941,дин.,Serbischer Dinar,Serbian Dinar
+114,RUB,643,₽,Russischer Rubel,Russian Ruble
+115,RWF,646,FR,Ruanda-Franc,Rwandan Franc
+116,SAR,682,ر.س,Saudi-Riyal,Saudi Riyal
+117,SBD,90,$,Salomonen-Dollar,Solomon Islands Dollar
+118,SCR,690,₨,Seychellen-Rupie,Seychellois Rupee
+119,SDG,938,£,Sudanesisches Pfund,Sudanese Pound
+120,SEK,752,kr,Schwedische Krone,Swedish Krona
+121,SGD,702,$,Singapur-Dollar,Singapore Dollar
+122,SHP,654,£,St.-Helena-Pfund,Saint Helena Pound
+123,SLL,694,Le,Sierra-leonischer Leone,Sierra Leonean Leone
+124,SOS,706,Sh,Somalia-Schilling,Somali Shilling
+125,SRD,740,$,Suriname-Dollar,Surinamese Dollar
+126,SSP,728,£,Südsudanesisches Pfund,South Sudanese Pound
+127,STN,930,Db,São-toméischer Dobra,Sao Tome and Principe Dobra
+128,SYP,760,£,Syrisches Pfund,Syrian Pound
+129,SZL,748,L,Eswatini-Lilangeni,Swazi Lilangeni
+130,THB,764,฿,Thailändischer Baht,Thai Baht
+131,TJS,934,ЅМ,Tadschikischer Somoni,Tajikistani Somoni
+132,TMT,934,m,Turkmenistan-Manat,Turkmenistani Manat
+133,TND,788,د.ت,Tunesischer Dinar,Tunisian Dinar
+134,TOP,776,T$,Tongaischer Paʻanga,Tongan Paʻanga
+135,TRY,949,₺,Türkische Lira,Turkish Lira
+136,TTD,780,TT$,Trinidad-und-Tobago-Dollar,Trinidad and Tobago Dollar
+137,TWD,901,NT$,Neuer Taiwan-Dollar,New Taiwan Dollar
+138,TZS,834,T/,Tansania-Schilling,Tanzanian Shilling
+139,UAH,980,₴,Ukrainische Hrywnja,Ukrainian Hryvnia
+140,UGX,800,USh,Uganda-Schilling,Ugandan Shilling
+141,USD,840,$,US-Dollar,US Dollar
+142,UYU,858,$,Uruguayischer Peso,Uruguayan Peso
+143,UZS,860,UZS,Usbekischer Soʻm,Uzbekistani Som
+144,VES,928,Bs.,Venezolanischer Bolívar,Venezuelan Bolívar
+145,VND,704,₫,Vietnamesischer Đồng,Vietnamese Dong
+146,VUV,548,Vt,Vanuatu-Vatu,Vanuatu Vatu
+147,WST,876,T,Samoa-Tala,Samoan Tala
+148,XAF,950,Fr,Zentralafrikanischer CFA-Franc,CFA Franc BEAC
+149,XCD,951,$,Ostkaribischer Dollar,East Caribbean Dollar
+150,XOF,952,Fr,Westafrikanischer CFA-Franc,CFA Franc BCEAO

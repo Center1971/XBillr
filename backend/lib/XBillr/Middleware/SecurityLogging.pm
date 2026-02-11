@@ -13,15 +13,15 @@ sub register {
         
         my $method = $c->req->method;
         my $path = $c->req->url->path->to_string;
-        my $ip = $c->tx->remote_address;
+        my $ip = $c->tx->remote_address || 'unknown';
         
         # Logge verdächtige Requests
         if ($path =~ /\.\./ || $path =~ /\/etc\// || $path =~ /\/proc\//) {
             $c->app->log->warn("Suspicious path access attempt from $ip: $path");
         }
         
-        # Logge POST/PUT/DELETE Requests
-        if ($method =~ /^(POST|PUT|DELETE)$/) {
+        # Logge ALLE API Requests (not just POST/PUT/DELETE)
+        if ($path =~ m{^/api}) {
             $c->app->log->info("$method request from $ip: $path");
         }
     });
@@ -31,7 +31,7 @@ sub register {
         my $c = shift;
         
         if ($c->res->code >= 400) {
-            my $ip = $c->tx->remote_address;
+            my $ip = $c->tx->remote_address || 'unknown';
             my $path = $c->req->url->path->to_string;
             my $code = $c->res->code;
             

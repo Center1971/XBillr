@@ -5,10 +5,13 @@
 # Usage: openapi-doc [OPTIONS]
 
 PROG=$(basename "$0")
+DIR=$(dirname "$0")
+BASEDIR="${DIR}/.."
+echo $BASEDIR
 
 # Default values
-API_FILE="openapi.yaml"
-OUTPUT_DIR="./documentation/api"
+API_FILE="${BASEDIR}/backend/openapi.yaml"
+OUTPUT_DIR="${BASEDIR}/documentation/api"
 GENERATOR="html2"
 TEMPLATE_DIR=""
 CUSTOM_CSS=""

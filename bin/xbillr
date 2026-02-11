@@ -91,6 +91,87 @@ get_compose_files() {
     fi
 }
 
+# Kill all processes using a specific port
+kill_port() {
+    local port=$1
+    local process_name=$2
+    
+    # Find all PIDs using the port
+    local pids=""
+    if command -v lsof >/dev/null 2>&1; then
+        pids=$(lsof -ti:$port 2>/dev/null || echo "")
+    elif command -v ss >/dev/null 2>&1; then
+        # Fallback to ss if lsof not available
+        pids=$(ss -tlnp 2>/dev/null | grep ":$port " | grep -oP 'pid=\K[0-9]+' | sort -u || echo "")
+    fi
+    
+    if [ -z "$pids" ]; then
+        return 0
+    fi
+    
+    echo -e "${YELLOW}Stopping processes using port $port...${NC}"
+    
+    # Kill all processes using the port
+    for pid in $pids; do
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo -e "${YELLOW}  Stopping process $pid...${NC}"
+            # Try graceful shutdown first
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+    
+    # Wait up to 5 seconds for graceful shutdown
+    local count=0
+    while [ $count -lt 5 ]; do
+        local still_running=""
+        for pid in $pids; do
+            if ps -p "$pid" > /dev/null 2>&1; then
+                still_running="$still_running $pid"
+            fi
+        done
+        
+        if [ -z "$still_running" ]; then
+            break
+        fi
+        
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    # Force kill any remaining processes
+    for pid in $pids; do
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo -e "${YELLOW}  Force killing process $pid...${NC}"
+            kill -KILL "$pid" 2>/dev/null || true
+        fi
+    done
+    
+    # Wait for port to be released
+    count=0
+    while [ $count -lt 10 ]; do
+        if command -v lsof >/dev/null 2>&1; then
+            if ! lsof -ti:$port >/dev/null 2>&1; then
+                break
+            fi
+        elif command -v ss >/dev/null 2>&1; then
+            if ! ss -tlnp 2>/dev/null | grep -q ":$port "; then
+                break
+            fi
+        else
+            # If neither tool available, just wait
+            break
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    if [ $count -ge 10 ]; then
+        echo -e "${RED}Warning: Port $port may still be in use${NC}"
+    else
+        echo -e "${GREEN}Port $port is now free${NC}"
+    fi
+}
+
 # Gracefully stop process by PID
 graceful_stop() {
     local pid_file=$1
@@ -173,25 +254,38 @@ backend_start() {
     if [ "$system" = "devel" ]; then
         # Start backend locally in development mode
         check_and_stop_backend "$system"
-        cd "$PROJECT_ROOT/backend"
-        mkdir -p log
-        touch log/xbillr.log
-        chmod 664 log/xbillr.log
-        chown "$(id -u)":"$(id -g)" log/xbillr.log 2>/dev/null || true
+        
+        # Check if port is still in use (shouldn't be after stop, but double-check)
+        if command -v lsof >/dev/null 2>&1; then
+            if lsof -ti:$BACKEND_PORT >/dev/null 2>&1; then
+                echo -e "${YELLOW}Port $BACKEND_PORT is still in use, cleaning up...${NC}"
+                kill_port "$BACKEND_PORT" "backend"
+                sleep 1
+            fi
+        fi
+        
+        cd "$PROJECT_ROOT"
+        mkdir -p logs
+        touch logs/xbillr.log
+        touch logs/xbillr-backend.log
+        touch logs/xbillr-frontend.log
+        chmod 664 logs/*.log 2>/dev/null || true
+        chown "$(id -u)":"$(id -g)" logs/*.log 2>/dev/null || true
         export DB_DSN="dbi:MariaDB:database=xbillr;host=localhost;port=${DB_PORT}"
         export DB_USER
         export DB_PASSWORD
         export ALLOWED_ORIGINS
         export BACKEND_PORT
         export PERL5LIB="$PROJECT_ROOT/backend/lib:$PERL5LIB"
-        nohup morbo app.pl -l "http://*:${BACKEND_PORT}" >/tmp/xbillr-backend.log 2>&1 &
+        cd "$PROJECT_ROOT/backend"
+        nohup morbo app.pl -l "http://*:${BACKEND_PORT}" >>"$PROJECT_ROOT/logs/xbillr-backend.log" 2>&1 &
         local pid=$!
         echo $pid > "$BACKEND_PID_FILE"
         echo "system=$system" >> "$BACKEND_PID_FILE"
         echo "started_at=$(date +%s)" >> "$BACKEND_PID_FILE"
         echo -e "${GREEN}Backend started locally! (PID: $pid)${NC}"
-        echo -e "${YELLOW}Backend logs: tail -f /tmp/xbillr-backend.log${NC}"
-        echo -e "${YELLOW}App logs: tail -f $PROJECT_ROOT/backend/log/xbillr.log${NC}"
+        echo -e "${YELLOW}Backend logs: tail -f $PROJECT_ROOT/logs/xbillr-backend.log${NC}"
+        echo -e "${YELLOW}App logs: tail -f $PROJECT_ROOT/logs/xbillr.log${NC}"
     else
         # Docker mode (prod)
         check_and_stop_backend "$system"
@@ -219,7 +313,12 @@ backend_stop() {
     cd "$PROJECT_ROOT"
     
     if [ "$system" = "devel" ]; then
+        # First try graceful stop via PID file
         graceful_stop "$BACKEND_PID_FILE" "backend"
+        
+        # Then kill any processes still using the port (handles child processes, multiple instances, etc.)
+        kill_port "$BACKEND_PORT" "backend"
+        
         echo -e "${GREEN}Backend stopped!${NC}"
     else
         local compose_files
@@ -243,7 +342,21 @@ backend_restart() {
     local system=$1
     echo -e "${BLUE}Restarting backend (${system})...${NC}"
     backend_stop "$system"
+    
+    # Wait a bit more to ensure port is fully released
     sleep 2
+    
+    # Double-check port is free before starting
+    if [ "$system" = "devel" ]; then
+        if command -v lsof >/dev/null 2>&1; then
+            if lsof -ti:$BACKEND_PORT >/dev/null 2>&1; then
+                echo -e "${YELLOW}Port $BACKEND_PORT still in use, forcing cleanup...${NC}"
+                kill_port "$BACKEND_PORT" "backend"
+                sleep 1
+            fi
+        fi
+    fi
+    
     backend_start "$system"
 }
 
@@ -286,9 +399,9 @@ backend_logs() {
     cd "$PROJECT_ROOT"
     
     if [ "$system" = "devel" ]; then
-        echo -e "${YELLOW}Backend process logs: tail -f /tmp/xbillr-backend.log${NC}"
-        echo -e "${YELLOW}App logs: tail -f $PROJECT_ROOT/backend/log/xbillr.log${NC}"
-        tail -f /tmp/xbillr-backend.log
+        echo -e "${YELLOW}Backend process logs: tail -f $PROJECT_ROOT/logs/xbillr-backend.log${NC}"
+        echo -e "${YELLOW}App logs: tail -f $PROJECT_ROOT/logs/xbillr.log${NC}"
+        tail -f "$PROJECT_ROOT/logs/xbillr-backend.log"
     else
         local compose_files=$(get_compose_files "$system")
         $DOCKER_COMPOSE $compose_files logs -f backend
@@ -322,13 +435,13 @@ frontend_start() {
         else
             echo -e "${GREEN}Starting frontend development server...${NC}"
             # Start in background and save PID
-            npm start > /tmp/xbillr-frontend.log 2>&1 &
+            npm start >>"$PROJECT_ROOT/logs/xbillr-frontend.log" 2>&1 &
             local pid=$!
             echo $pid > "$FRONTEND_PID_FILE"
             echo "system=$system" >> "$FRONTEND_PID_FILE"
             echo "started_at=$(date +%s)" >> "$FRONTEND_PID_FILE"
             echo -e "${GREEN}Frontend started! (PID: $pid)${NC}"
-            echo -e "${YELLOW}Frontend logs: tail -f /tmp/xbillr-frontend.log${NC}"
+            echo -e "${YELLOW}Frontend logs: tail -f $PROJECT_ROOT/logs/xbillr-frontend.log${NC}"
         fi
     else
         echo -e "${YELLOW}No frontend directory with package.json found.${NC}"
@@ -348,7 +461,7 @@ frontend_start() {
         fi
         
         cd "$PROJECT_ROOT/frontend"
-        python3 -m http.server $port > /tmp/xbillr-frontend.log 2>&1 &
+        python3 -m http.server $port >>"$PROJECT_ROOT/logs/xbillr-frontend.log" 2>&1 &
         local pid=$!
         echo $pid > "$FRONTEND_PID_FILE"
         echo "system=$system" >> "$FRONTEND_PID_FILE"
@@ -356,7 +469,7 @@ frontend_start() {
         echo "started_at=$(date +%s)" >> "$FRONTEND_PID_FILE"
         echo -e "${GREEN}Frontend HTTP server started! (PID: $pid, Port: $port)${NC}"
         echo -e "${YELLOW}Open: http://localhost:$port/login.html${NC}"
-        echo -e "${YELLOW}Frontend logs: tail -f /tmp/xbillr-frontend.log${NC}"
+        echo -e "${YELLOW}Frontend logs: tail -f $PROJECT_ROOT/logs/xbillr-frontend.log${NC}"
     fi
 }
 

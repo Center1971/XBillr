@@ -170,7 +170,7 @@ frontend => {
 
 ### Production (With Reverse Proxy) ⭐ RECOMMENDED
 
-Use relative paths with reverse proxy:
+Use relative paths with reverse proxy. **Important**: When using a reverse proxy, Keycloak must redirect back to the *public* API URL, not `localhost:3002`. Set `iam.api_public_base_url` and `iam.frontend_url` to your public URLs:
 
 ```perl
 frontend => {
@@ -178,7 +178,22 @@ frontend => {
   app_name => 'XBillr',
   app_version => '0.5',
 },
+
+iam => {
+  # ... issuer, clients, etc. ...
+  frontend_url => 'https://app.example.com',   # Where users land after login
+  api_public_base_url => 'https://app.example.com/api',  # OIDC callback base (Keycloak redirect_uri = this + '/auth/oidc/callback')
+  clients => {
+    web => {
+      client_id => 'xbillr-web',
+      redirect_uri => 'http://localhost:3002/api/auth/oidc/callback',  # Ignored when api_public_base_url is set
+      # ...
+    },
+  },
+},
 ```
+
+Add `https://app.example.com/api/auth/oidc/callback` to **Keycloak → Client (xbillr-web) → Valid Redirect URIs**.
 
 **Apache/Nginx Configuration**:
 ```apache

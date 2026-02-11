@@ -12,7 +12,7 @@ MYMETA.yml
 
 # Logs
 *.log
-log/
+# Note: logs/ is at project root, not in backend/
 
 # Local config
 local.conf

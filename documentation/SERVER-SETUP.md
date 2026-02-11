@@ -108,7 +108,7 @@ This will start:
 
 - **Frontend**: http://localhost:8082/login.html
 - **Backend API**: http://localhost:3002/api/health
-- **Logs**: `backend/log/xbillr.log`
+- **Logs**: `logs/xbillr.log` (project root)
 
 ### 8. Configure Keycloak Client
 
@@ -160,7 +160,7 @@ Edit `config/xbillr.conf`:
   
   log => {
     level => 'warn',  # Less verbose in production
-    path => 'log/xbillr.log',
+    path => '../logs/xbillr.log',  # Relative to backend/, resolves to project root ./logs/
   },
   
   database => {
@@ -365,7 +365,7 @@ See `backend/SECURITY.md` for detailed security hardening.
 
 ```bash
 # Check logs
-tail -f backend/log/xbillr.log
+tail -f logs/xbillr.log
 
 # Check syntax
 cd backend && perl -c app.pl
@@ -397,7 +397,7 @@ curl -I https://iam.smetools.eu/realms/SME%20Tools%20-%20Test
 # - Client secret must match config
 
 # Check backend logs
-tail -f backend/log/xbillr.log | grep -i oidc
+tail -f logs/xbillr.log | grep -i oidc
 ```
 
 ### 401 Unauthorized after login
@@ -445,8 +445,8 @@ docker compose ps
 
 ```bash
 # Development
-tail -f backend/log/xbillr.log
-tail -f /tmp/xbillr-backend.log
+tail -f logs/xbillr.log
+tail -f logs/xbillr-backend.log
 
 # Production (Docker)
 docker compose logs -f backend

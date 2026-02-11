@@ -158,6 +158,7 @@ sub create_invoice {
         payment_terms => $payment_terms,
         due_date => $self->_calculate_due_date($customer_id, $payment_terms),
         archived => 0,
+        tenant => $params->{tenant},
         created_at => DateTime->now->strftime('%Y-%m-%d %H:%M:%S'),
     });
     

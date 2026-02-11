@@ -26,9 +26,9 @@ sub list {
             };
         }
         
-        $c->render(openapi => \@result, status => 200);
+        $c->render(json => \@result, status => 200);
     } or do {
-        $c->render(openapi => { error => $@ }, status => 500);
+        $c->render(json => { error => $@ }, status => 500);
     };
 }
 

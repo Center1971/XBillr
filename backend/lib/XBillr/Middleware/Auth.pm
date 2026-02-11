@@ -157,33 +157,49 @@ sub register {
 
     $app->helper(require_tenant => sub {
         my $c = shift;
+        $c->app->log->info("DEBUG: require_tenant called");
         my $tenant = $c->current_tenant;
+        $c->app->log->info("DEBUG: require_tenant - tenant: " . ($tenant || 'none'));
         unless ($tenant) {
+            $c->app->log->info("DEBUG: require_tenant - no tenant -> 403");
             $c->render(json => { error => 'Tenant-Zuordnung fehlt' }, status => 403);
             return 0;
         }
+        $c->app->log->info("DEBUG: require_tenant -> returning 1");
         return 1;
     });
 
     $app->helper(tenant_customer_ids => sub {
         my $c = shift;
+        $c->app->log->info("DEBUG: tenant_customer_ids called");
         return $c->stash('tenant_customer_ids')
             if $c->stash('tenant_customer_ids');
         my $tenant = $c->current_tenant;
+        $c->app->log->info("DEBUG: tenant_customer_ids - tenant: " . ($tenant || 'none'));
         return [] unless $tenant;
+        $c->app->log->info("DEBUG: tenant_customer_ids - getting schema");
         my $schema = $c->app->schema;
+        $c->app->log->info("DEBUG: tenant_customer_ids - searching customers for tenant: $tenant");
         my $customers = $schema->resultset('Customer')->search({
-            -or => [
-                company => $tenant,
-                name => $tenant,
-            ],
+            tenant => $tenant,
         });
+        $c->app->log->info("DEBUG: tenant_customer_ids - iterating results");
         my @ids;
         while (my $customer = $customers->next) {
             push @ids, $customer->id;
         }
+        $c->app->log->info("DEBUG: tenant_customer_ids - found " . scalar(@ids) . " ids");
         $c->stash('tenant_customer_ids' => \@ids);
         return \@ids;
+    });
+
+    $app->helper(current_tenant_plan => sub {
+        my $c = shift;
+        my $tenant = $c->current_tenant;
+        return 'free' unless $tenant;
+        my $schema = $c->app->schema;
+        my $tenant_record = $schema->resultset('Tenant')->find({ name => $tenant });
+        return $tenant_record ? $tenant_record->plan : 'free';
     });
 
     # Helper für Authentifizierung prüfen (Session oder JWT)
@@ -255,8 +271,10 @@ sub register {
 
         # Check for session-based authentication first (BFF pattern)
         my $user_info = $c->session('user_info');
+        $c->app->log->info("DEBUG: authenticate_request - user_info exists: " . ($user_info ? 'yes' : 'no'));
         if ($user_info && $user_info->{sub}) {
             # User is authenticated via session cookie
+            $c->app->log->info("DEBUG: authenticate_request - session auth OK for " . ($user_info->{username} || 'unknown'));
             $c->stash(auth_user => {
                 type => 'oidc',
                 subject => $user_info->{sub},
@@ -269,6 +287,7 @@ sub register {
                 roles => $user_info->{roles} || [],
                 groups => $user_info->{groups} || [],
             });
+            $c->app->log->info("DEBUG: authenticate_request - returning 1");
             return 1;
         }
 
@@ -279,6 +298,7 @@ sub register {
         }
 
         unless ($token) {
+            $c->app->log->warn("Auth 401: no session user_info and no Bearer token for " . $c->req->url->path);
             $c->render(json => { error => 'Authentifizierung erforderlich' }, status => 401);
             return 0;
         }
@@ -342,23 +362,40 @@ sub register {
     # Helper für Berechtigung prüfen
     $app->helper(require_permission => sub {
         my ($c, $resource, $action) = @_;
+        $c->app->log->info("DEBUG: require_permission($resource, $action) called");
 
         my $auth_user = $c->stash('auth_user');
         unless ($auth_user) {
+            $c->app->log->warn("Auth 401: require_permission($resource, $action) but auth_user missing for " . $c->req->url->path);
             $c->render(json => { error => 'Authentifizierung erforderlich' }, status => 401);
             return 0;
         }
 
+        $c->app->log->info("DEBUG: require_permission - auth_user type: " . ($auth_user->{type} || 'none'));
         if ($auth_user->{type} && $auth_user->{type} eq 'oidc') {
             my %roles = map { $_ => 1 } @{$auth_user->{roles} || []};
-            return 1 if $roles{'XBillr-Admin'};
+            $c->app->log->info("DEBUG: require_permission - roles: " . join(', ', keys %roles));
+            if ($roles{'XBillr-Admin'}) {
+                $c->app->log->info("DEBUG: require_permission - XBillr-Admin -> returning 1");
+                return 1;
+            }
             if ($action eq 'view') {
-                return 1 if $roles{'XBillr-Tenant-Admin'} || $roles{'XBillr-User'} || $roles{'XBillr-Viewer'};
-                return 1 if grep { $_ =~ /^XBillr-/ } keys %roles;
+                if ($roles{'XBillr-Tenant-Admin'} || $roles{'XBillr-User'} || $roles{'XBillr-Viewer'}) {
+                    $c->app->log->info("DEBUG: require_permission - view role found -> returning 1");
+                    return 1;
+                }
+                if (grep { $_ =~ /^XBillr-/ } keys %roles) {
+                    $c->app->log->info("DEBUG: require_permission - XBillr- role found -> returning 1");
+                    return 1;
+                }
             }
             if ($action =~ /^(create|update|delete)$/) {
-                return 1 if $roles{'XBillr-Tenant-Admin'};
+                if ($roles{'XBillr-Tenant-Admin'}) {
+                    $c->app->log->info("DEBUG: require_permission - Tenant-Admin for $action -> returning 1");
+                    return 1;
+                }
             }
+            $c->app->log->info("DEBUG: require_permission - no matching role -> 403");
             $c->render(json => { error => 'Keine Berechtigung für diese Aktion' }, status => 403);
             return 0;
         }

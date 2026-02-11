@@ -1042,18 +1042,20 @@ paths:
         '500':
           $ref: '#/components/responses/ErrorResponse'
 
-  /api/supplier:
+  /api/suppliers:
     get:
       tags: [Supplier]
-      summary: Get supplier
-      x-mojo-to: XBillr::Controller::Supplier#get
+      summary: List suppliers
+      x-mojo-to: XBillr::Controller::Supplier#list
       responses:
         '200':
-          description: Supplier
+          description: Supplier list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Supplier'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Supplier'
         '500':
           $ref: '#/components/responses/ErrorResponse'
     post:
@@ -1077,10 +1079,111 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
         '500':
           $ref: '#/components/responses/ErrorResponse'
+  /api/suppliers/{id}:
+    get:
+      tags: [Supplier]
+      summary: Get supplier
+      x-mojo-to: XBillr::Controller::Supplier#get
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Supplier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
     put:
       tags: [Supplier]
       summary: Update supplier
       x-mojo-to: XBillr::Controller::Supplier#update
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Supplier'
+      responses:
+        '200':
+          description: Supplier updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [Supplier]
+      summary: Delete supplier
+      x-mojo-to: XBillr::Controller::Supplier#delete
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Supplier deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/supplier:
+    get:
+      tags: [Supplier]
+      summary: Get supplier (legacy)
+      x-mojo-to: XBillr::Controller::Supplier#get
+      deprecated: true
+      responses:
+        '200':
+          description: Supplier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      tags: [Supplier]
+      summary: Create supplier (legacy)
+      x-mojo-to: XBillr::Controller::Supplier#create
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Supplier'
+      responses:
+        '201':
+          description: Supplier created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [Supplier]
+      summary: Update supplier (legacy)
+      x-mojo-to: XBillr::Controller::Supplier#update
+      deprecated: true
       requestBody:
         required: true
         content:

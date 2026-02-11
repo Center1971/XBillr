@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Mojolicious::Lite;
 use lib 'lib';
+use File::Spec;
 use XBillr::Model::DB;
 use XBillr::Component::Security;
 use XBillr::Component::InputValidator;
@@ -21,6 +22,7 @@ use XBillr::Controller::Roles;
 use XBillr::Controller::Permissions;
 use XBillr::Controller::Customers;
 use XBillr::Controller::Invoices;
+use XBillr::Controller::Countries;
 use XBillr::Controller::TimeEntries;
 use XBillr::Controller::HourlyRates;
 use XBillr::Controller::Supplier;
@@ -37,6 +39,15 @@ unless (-e $config_file) {
 }
 plugin 'Config' => { file => $config_file };
 
+# Session cookie signing: use same secret on all instances/workers so sessions work behind a load balancer
+my $secret = $ENV{MOJO_SECRET} || app->config->{secret} || app->config->{hypnotize}{secret};
+if ($secret) {
+    app->secrets(ref $secret eq 'ARRAY' ? $secret : [$secret]);
+} else {
+    # Fallback: single fixed secret so multiple workers/instances can validate the same cookie
+    app->secrets(['XBillr-session-secret-please-set-MOJO_SECRET-in-production']);
+}
+
 # Set controller namespace for Mojolicious
 app->routes->namespaces(['XBillr::Controller']);
 
@@ -50,6 +61,14 @@ $r->post('/api/auth/logout')->to('auth#logout');
 $r->get('/api/auth/me')->to('auth#me');
 $r->get('/api/health')->to('health#check');
 $r->get('/api/config')->to('config#frontend');
+$r->get('/api/countries')->to('countries#list');
+
+# Test: Direct route for customers (bypassing $api group)
+$r->get('/api/customers-test')->to(cb => sub {
+    my $c = shift;
+    $c->app->log->info("DEBUG: /api/customers-test route hit");
+    $c->render(json => { test => 'ok' });
+});
 
 # Load OpenAPI spec for documentation ONLY (disable route generation)
 # We'll register routes manually to avoid the "Route without action" issue
@@ -58,9 +77,17 @@ $r->get('/api/config')->to('config#frontend');
 # };
 
 # Logging aus Konfiguration anwenden
+# Ensure log path resolves to project root ./logs/ directory
 if (my $log_conf = app->config->{log}) {
     app->log->level($log_conf->{level}) if $log_conf->{level};
-    app->log->path($log_conf->{path}) if $log_conf->{path};
+    if ($log_conf->{path}) {
+        my $log_path = $log_conf->{path};
+        # If relative path, resolve relative to backend/ directory (where app.pl runs)
+        unless (File::Spec->file_name_is_absolute($log_path)) {
+            $log_path = app->home->rel_file($log_path);
+        }
+        app->log->path($log_path);
+    }
 }
 
 # Sicherheits-Logging
@@ -75,25 +102,35 @@ plugin 'SecurityHeaders' => {
     'X-Frame-Options' => 'DENY',
     'X-XSS-Protection' => '1; mode=block',
     'Strict-Transport-Security' => 'max-age=31536000; includeSubDomains',
-    'Content-Security-Policy' => "default-src 'self'",
+    'Content-Security-Policy' => "default-src 'self' https://iam.smetools.eu; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' 'unsafe-inline'",
     'Referrer-Policy' => 'strict-origin-when-cross-origin',
 };
 
 # Datenbankverbindung
 helper schema => sub {
     state $schema;
+    app->log->info("Schema helper called, schema state: " . ($schema ? "already initialized" : "needs initialization"));
     unless ($schema) {
-        # Verwende Umgebungsvariablen, die vom Container gesetzt werden
-        my $dsn = $ENV{DB_DSN} || "dbi:MariaDB:database=xbillr;host=localhost;port=3306";
-        my $user = $ENV{DB_USER} || "xbillr_user";
-        my $pass = $ENV{DB_PASSWORD} || "xbillr_pass";
+        app->log->info("Initializing database schema connection...");
+        # Verwende Konfiguration aus config/xbillr.conf, mit Fallback auf Umgebungsvariablen
+        my $db_config = app->config->{database} || {};
+        my $dsn = $ENV{DB_DSN} || $db_config->{dsn} || "dbi:MariaDB:database=xbillr;host=localhost;port=3306";
+        my $user = $ENV{DB_USER} || $db_config->{user} || "xbillr_user";
+        my $pass = $ENV{DB_PASSWORD} || $db_config->{password} || "xbillr_pass";
         
         # Stelle sicher, dass die DSN dbi:MariaDB verwendet (nicht dbi:mysql)
         # DBIx::Class kann Probleme haben, wenn die DSN nicht korrekt ist
         $dsn =~ s/^dbi:mysql/dbi:MariaDB/i;
         
+        # host=localhost + port= causes "port cannot be specified when host is localhost"
+        # Use 127.0.0.1 to force TCP connection when a port is specified
+        if ($dsn =~ /host=localhost/i && $dsn =~ /port=\d+/) {
+            $dsn =~ s/host=localhost/host=127.0.0.1/i;
+            app->log->info("DSN: Replaced localhost with 127.0.0.1 for TCP connection with port");
+        }
+        
         # Log für Debugging
-        app->log->debug("Connecting to database: $dsn");
+        app->log->info("Connecting to database: $dsn");
         
         # Ignoriere DBIx::Class Warnungen für MariaDB (die Verbindung funktioniert trotzdem)
         local $SIG{__WARN__} = sub {
@@ -104,20 +141,31 @@ helper schema => sub {
         };
         
         # Versuche die Verbindung herzustellen
+        # DBIx::Class uses lazy connections, so we don't verify here
+        # The connection will be established when first used (e.g., when a query is executed)
         eval {
             $schema = XBillr::Model::DB->connect(
                 $dsn,
                 $user,
                 $pass,
                 {
-                    RaiseError => 1,
+                    RaiseError => 0,  # Don't raise errors, handle them manually
                     PrintError => 0,  # Fehler nicht ausgeben, werden geloggt
+                    AutoCommit => 1,
+                    # Some older DBD::MariaDB installations do not support mysql_enable_utf8mb4.
+                    # We rely on explicit `SET NAMES utf8mb4` instead.
                     on_connect_do => [
                         'SET NAMES utf8mb4',
                         'SET CHARACTER SET utf8mb4',
                     ],
                 }
             );
+            
+            if ($schema) {
+                app->log->info("Schema object created (connection will be lazy - established on first query)");
+            } else {
+                app->log->error("Failed to create schema object in eval block");
+            }
         };
         
         # WICHTIG: Prüfe zuerst ob Schema existiert, unabhängig von $@
@@ -128,30 +176,17 @@ helper schema => sub {
             if ($@ && $@ =~ /undetermined_driver|This version of DBIC|DBIC_DRIVER/) {
                 undef $@;
             }
-            # Teste die Verbindung - ignoriere Warnungen
-            my $dbh;
+            # Force connection immediately by executing a test query
             eval {
-                local $SIG{__WARN__} = sub {};  # Ignoriere alle Warnungen beim DBH-Zugriff
-                $dbh = $schema->storage->dbh;
+                $schema->resultset('Country')->count;
+                app->log->info("Database connection established and verified");
             };
-            
-            if ($dbh) {
-                # Teste die Verbindung mit einer einfachen Abfrage
-                eval {
-                    my $test_sth = $dbh->prepare("SELECT 1");
-                    $test_sth->execute();
-                    $test_sth->finish();
-                };
-                if ($@) {
-                    app->log->error("Schema connection query test failed: $@");
-                    undef $schema;
-                } else {
-                    app->log->info("Database connection established successfully");
-                }
-            } else {
-                # DBH nicht verfügbar - das ist ein echter Fehler
-                app->log->error("Schema connection test failed: Database handle not available");
-                undef $schema;
+            if ($@) {
+                my $err = $@;
+                $err =~ s/at \/.*$//;
+                $err =~ s/\n/ /g;
+                app->log->error("Database connection verification failed: $err");
+                undef $schema;  # Don't cache a broken schema
             }
         } else {
             # Schema wurde nicht erstellt - prüfe ob es ein echter Fehler ist
@@ -163,11 +198,14 @@ helper schema => sub {
             # Nur echte Fehler loggen (nicht Warnungen)
             unless ($error =~ /undetermined_driver|This version of DBIC|DBIC_DRIVER/) {
                 app->log->error("Schema connection failed: $error");
+                app->log->error("Connection details: DSN=$dsn, User=$user");
             }
         }
         
         # DBIx::Class gibt eine Warnung für MariaDB, funktioniert aber trotzdem
         # Die Warnung wird ignoriert, da MariaDB MySQL-kompatibel ist
+    } else {
+        app->log->debug("Schema helper: Using existing schema object (already initialized)");
     }
     return $schema;
 };
@@ -232,12 +270,13 @@ hook before_dispatch => sub {
     }
 
     # OIDC/Session-Auth für API-Routen (außer Health, Config und Auth-Login/Logout)
-    my $path = $c->req->url->path->to_string;
+    $path = $c->req->url->path->to_string;
     if ($path =~ m{^/api} && $c->req->method ne 'OPTIONS') {
         return if $path eq '/api/health';
         return if $path eq '/api/config';
         return if $path eq '/api/auth/login';
         return if $path eq '/api/auth/logout';
+        return if $path eq '/api/auth/me';
         return if $path eq '/api/auth/oidc/login';
         return if $path eq '/api/auth/oidc/callback';
         return if $path eq '/api/auth/oidc/logout';
@@ -280,25 +319,16 @@ my $rate_limit = app->routes->under(sub {
     return 1;
 });
 
-# Root Route - API Info (nach dem under-Middleware, aber wird durchgelassen)
+# Serve frontend static files from backend for local development (same-origin = session cookies work)
+app->static->paths([app->home->rel_file('../frontend')]);
+
+# Root Route - serve frontend index.html
 get '/' => sub {
     my $c = shift;
-    $c->render(json => {
-        name => 'XBillr API',
-        version => $XBillr::Version::VERSION,
-        status => 'running',
-        endpoints => {
-            health => '/api/health',
-            customers => '/api/customers',
-            invoices => '/api/invoices',
-            time_entries => '/api/time-entries',
-            timesheets => '/api/timesheets',
-            hourly_rates => '/api/hourly-rates',
-            supplier => '/api/supplier',
-            logs => '/api/logs'
-        }
-    });
+    $c->reply->static('index.html');
 };
+
+# SPA catch-all route moved to end of file to not interfere with API routes
 
 # Fehlerbehandlung ohne Informationsleckage
 app->hook(after_dispatch => sub {
@@ -317,7 +347,11 @@ app->hook(after_dispatch => sub {
 });
 
 # API Routes
-my $api = app->routes->under('/api');
+my $api = app->routes->under('/api')->to(cb => sub {
+    my $c = shift;
+    $c->app->log->info("DEBUG: /api under callback entered for " . $c->req->url->path);
+    return 1;
+});
 
 # Authentifizierung routes are defined above, before OpenAPI plugin loads
 
@@ -325,7 +359,7 @@ my $api = app->routes->under('/api');
 my $users = $api->under('/users')->to(cb => sub {
     my $c = shift;
     $c->app->log->debug("Users route: checking permission");
-    return $c->app->require_permission($c, 'users', 'view') ? 1 : 0;
+    return $c->require_permission('users', 'view') ? 1 : 0;
 });
 $users->get('')->to(cb => sub {
     my $c = shift;
@@ -372,47 +406,84 @@ $users->get('')->to(cb => sub {
 });
 $users->post('')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'users', 'create') ? 1 : 0;
+    return $c->require_permission('users', 'create') ? 1 : 0;
 })->to('XBillr::Controller::Users#create');
 $users->put('/:id')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'users', 'update') ? 1 : 0;
+    return $c->require_permission('users', 'update') ? 1 : 0;
 })->to('XBillr::Controller::Users#update');
 $users->delete('/:id')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'users', 'delete') ? 1 : 0;
+    return $c->require_permission('users', 'delete') ? 1 : 0;
 })->to('XBillr::Controller::Users#delete');
 $users->post('/:id/send-credentials')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'users', 'create') ? 1 : 0;
+    return $c->require_permission('users', 'create') ? 1 : 0;
 })->to('XBillr::Controller::Users#send_credentials');
 
 # Rollenverwaltung
 my $roles = $api->under('/roles')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'roles', 'view');
+    return $c->require_permission('roles', 'view');
 });
 $roles->get('')->to('XBillr::Controller::Roles#list');
 $roles->post('')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'roles', 'create') ? 1 : 0;
+    return $c->require_permission('roles', 'create') ? 1 : 0;
 })->to('XBillr::Controller::Roles#create');
 $roles->put('/:id')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'roles', 'update') ? 1 : 0;
+    return $c->require_permission('roles', 'update') ? 1 : 0;
 })->to('XBillr::Controller::Roles#update');
 $roles->delete('/:id')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'roles', 'delete') ? 1 : 0;
+    return $c->require_permission('roles', 'delete') ? 1 : 0;
 })->to('XBillr::Controller::Roles#delete');
 
 # Rechte
 $api->get('/permissions')->to(cb => sub {
     my $c = shift;
-    return $c->app->require_permission($c, 'roles', 'view') ? 1 : 0;
+    return $c->require_permission('roles', 'view') ? 1 : 0;
 })->to('XBillr::Controller::Permissions#list');
 
+# Kundenverwaltung
+my $customers = $api->under('/customers')->to(cb => sub {
+    my $c = shift;
+    $c->app->log->info("DEBUG: /api/customers under callback entered");
+    my $result = $c->require_permission('customers', 'view') ? 1 : 0;
+    $c->app->log->info("DEBUG: /api/customers under callback returning $result");
+    return $result;
+});
+# GET routes - view permission checked in under callback above
+$customers->get('')->to('Customers#list');
+$customers->get('/:id')->to('Customers#get');
+
+# POST/PUT/DELETE need separate under for create/update/delete permissions
+my $customers_write = $customers->under('/')->to(cb => sub {
+    my $c = shift;
+    my $method = $c->req->method;
+    my $action = $method eq 'POST' ? 'create' : $method eq 'DELETE' ? 'delete' : 'update';
+    $c->app->log->info("DEBUG: customers_write checking permission: $action");
+    return $c->require_permission('customers', $action) ? 1 : 0;
+});
+$customers_write->post('')->to('Customers#create');
+$customers_write->put('/:id')->to('Customers#update');
+$customers_write->delete('/:id')->to('Customers#delete');
+
 # OpenAPI-Routen werden über openapi.yaml registriert
+
+# Fallback for SPA routes - serve index.html for any non-API route
+# MUST be defined LAST to not interfere with API routes
+get '/*' => sub {
+    my $c = shift;
+    my $path = $c->req->url->path->to_string;
+    
+    # Don't interfere with API routes (should not reach here, but safety check)
+    return $c->reply->not_found if $path =~ m{^/api};
+    
+    # Try to serve static file, fallback to index.html for SPA
+    $c->reply->static($path) || $c->reply->static('index.html');
+};
 
 app->start;
 
