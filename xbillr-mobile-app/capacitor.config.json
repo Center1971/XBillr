@@ -3,10 +3,11 @@
   "appName": "XBillr",
   "webDir": "www",
   "server": {
+    "url": "https://www.xbillr.eu/app/",
     "allowNavigation": [
-      "https://xbillr.eu",
-      "https://www.xbillr.eu",
-      "https://iam.smetools.eu"
+      "www.xbillr.eu",
+      "xbillr.eu",
+      "iam.smetools.eu"
     ]
   },
   "plugins": {
@@ -14,9 +15,14 @@
     "Keyboard": { "resize": "body" }
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "backgroundColor": "#091638"
   },
   "ios": {
-    "preferredContentMode": "mobile"
+    "preferredContentMode": "mobile",
+    "allowsLinkPreview": false,
+    "backgroundColor": "#091638",
+    "contentInset": "automatic",
+    "scrollEnabled": true
   }
 }
