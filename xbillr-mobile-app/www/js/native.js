@@ -18,6 +18,43 @@ function plugin(name) {
   return null;
 }
 
+function errMessage(e) {
+  if (!e) return 'Unbekannter Fehler';
+  if (typeof e === 'string') return e;
+  return e.message || e.errorMessage || e.code || JSON.stringify(e) || String(e);
+}
+
+/** Öffnet https-URLs im System-/In-App-Browser (OAuth). */
+async function openExternal(url) {
+  const B = plugin('Browser');
+  if (B?.open) {
+    try {
+      await B.open({ url });
+      return;
+    } catch (e1) {
+      try { await B.close?.(); } catch (_) { /* ignore */ }
+      try {
+        await B.open({ url, presentationStyle: 'popover' });
+        return;
+      } catch (e2) {
+        console.warn('[Browser.open failed]', errMessage(e1), errMessage(e2));
+      }
+    }
+  }
+
+  // Fallback: System-Safari / Chrome (iam darf NICHT in allowNavigation stehen)
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (opened) return;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 export const Preferences = {
   async get({ key }) {
     const P = plugin('Preferences');
@@ -38,16 +75,13 @@ export const Preferences = {
 
 export const Browser = {
   async open({ url }) {
-    const B = plugin('Browser');
-    if (B?.open) {
-      return B.open({ url, presentationStyle: 'fullscreen' });
-    }
-    // WebView blockiert window.open oft – explizit fehlschlagen
-    throw new Error('Browser-Plugin nicht verfügbar. App neu bauen (cap sync).');
+    await openExternal(url);
   },
   async close() {
     const B = plugin('Browser');
-    if (B?.close) return B.close();
+    if (B?.close) {
+      try { await B.close(); } catch (_) { /* ignore */ }
+    }
   }
 };
 
@@ -91,3 +125,5 @@ export const StatusBar = {
 };
 
 export const Style = { Dark: 'DARK', Light: 'LIGHT' };
+
+export { errMessage };

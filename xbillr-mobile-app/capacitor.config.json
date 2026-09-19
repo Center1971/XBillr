@@ -5,8 +5,7 @@
   "server": {
     "allowNavigation": [
       "www.xbillr.eu",
-      "xbillr.eu",
-      "iam.smetools.eu"
+      "xbillr.eu"
     ]
   },
   "plugins": {

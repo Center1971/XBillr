@@ -293,8 +293,8 @@ async function boot() {
       await auth.login();
       errEl.textContent = 'Bitte im Browser anmelden. Danach kehrst du automatisch zurück.';
     } catch (e) {
-      console.error('[login]', e);
-      ui.showLogin(e.message || String(e));
+      console.error('[login]', e?.message || e?.errorMessage || e?.code || e);
+      ui.showLogin((e && (e.message || e.errorMessage || e.code)) || 'Login konnte nicht geöffnet werden');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Anmelden';
