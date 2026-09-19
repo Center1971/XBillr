@@ -3,7 +3,6 @@
   "appName": "XBillr",
   "webDir": "www",
   "server": {
-    "url": "https://www.xbillr.eu/app/",
     "allowNavigation": [
       "www.xbillr.eu",
       "xbillr.eu",

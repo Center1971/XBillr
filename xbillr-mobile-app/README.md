@@ -1,12 +1,12 @@
 # XBillr Mobile App (Android & iOS)
 
-Native Hülle (Capacitor) für **https://www.xbillr.eu/app/**  
-Login über Keycloak (`iam.smetools.eu`).
+Native Capacitor-App mit lokaler SPA (`www/`), Keycloak-PKCE-Login und Offline-Cache/Sync gemäß ANFORDERUNGEN.
 
-## Voraussetzungen
+## Funktionen
 
-- Node.js 18+
-- Android Studio (SDK 35) bzw. Xcode + CocoaPods
+- Stammdaten, Profil, Kunden, Rechnungen (Status-Aktionen)
+- Offline: Cache + Sync-Queue (Last-Write-Wins beim Wieder-Online)
+- Rechnungen: nur aktuelles Jahr im Cache
 
 ## Einrichtung
 
@@ -38,15 +38,8 @@ In Xcode **`App.xcworkspace`** öffnen (nicht `.xcodeproj`).
 | Setting | Wert |
 |--------|------|
 | App-ID | `eu.xbillr.mobile` |
-| Start-URL | `https://www.xbillr.eu/app/` |
-| Navigation | `www.xbillr.eu`, `xbillr.eu`, `iam.smetools.eu` |
+| API | `https://www.xbillr.eu/api` |
+| Keycloak Client | `xbillr-mobile` |
+| Redirect URI | `xbillr-mobile://oauth/callback` |
 
-Nach Änderungen an `www/` oder `capacitor.config.json`:
-
-```bash
-npx cap sync
-```
-
-## Store
-
-Checkliste und Signing: **[STORE.md](./STORE.md)**
+In Keycloak muss `xbillr-mobile://oauth/callback` als gültige Redirect-URI eingetragen sein.
