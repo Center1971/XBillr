@@ -428,6 +428,8 @@ sub me {
         my $user = $c->stash('current_user');
         
         unless ($user) {
+            # Bereits durch Middleware beantwortet (z.B. ungültiges Token)
+            return if $c->tx->res->code && $c->tx->res->code != 200;
             return $c->render(json => { error => 'Nicht authentifiziert' }, status => 401);
         }
         

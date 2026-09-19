@@ -1,4 +1,4 @@
-import { Network } from './native.js';
+import { Network, plugin } from './native.js';
 import { CONFIG } from './config.js';
 import { auth } from './auth.js';
 import { storage } from './storage.js';
@@ -17,6 +17,59 @@ export async function initNetwork(onChange) {
 
 export function isOnline() { return online; }
 
+function parseBody(data) {
+  if (data == null || data === '') return {};
+  if (typeof data === 'object') return data;
+  if (typeof data === 'string') {
+    try { return JSON.parse(data); } catch { return { detail: data }; }
+  }
+  return {};
+}
+
+function httpError(status, data) {
+  const msg = data?.detail || data?.title || data?.error || data?.error_description || `HTTP ${status}`;
+  const err = new Error(msg);
+  err.status = status;
+  err.data = data;
+  return err;
+}
+
+/** API-Request über CapacitorHttp (kein CORS, Headers zuverlässig) oder fetch. */
+async function nativeRequest(method, url, headers, body) {
+  const Http = plugin('CapacitorHttp');
+  if (Http?.request) {
+    let res;
+    try {
+      res = await Http.request({
+        method,
+        url,
+        headers,
+        data: body !== undefined ? body : undefined,
+        dataType: body !== undefined ? 'json' : undefined
+      });
+    } catch (e) {
+      const status = e?.status ?? e?.statusCode ?? 0;
+      throw httpError(status, parseBody(e?.data));
+    }
+    const status = res?.status ?? res?.statusCode ?? 0;
+    if (status === 204) return null;
+    const data = parseBody(res?.data);
+    if (status < 200 || status >= 300) throw httpError(status, data);
+    return data;
+  }
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 204) return null;
+  const text = await res.text();
+  const data = parseBody(text);
+  if (!res.ok) throw httpError(res.status, data);
+  return data;
+}
+
 async function request(method, path, body, { queueIfOffline = false, _retried = false } = {}) {
   if (!online) {
     if (queueIfOffline && method !== 'GET') {
@@ -31,32 +84,26 @@ async function request(method, path, body, { queueIfOffline = false, _retried = 
   const token = await auth.getAccessToken();
   if (!token) throw new Error('Nicht angemeldet.');
 
-  const res = await fetch(`${CONFIG.apiBase}/${path.replace(/^\//, '')}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-      ...(body ? { 'Content-Type': 'application/json' } : {})
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
+  const url = `${CONFIG.apiBase}/${path.replace(/^\//, '')}`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/json',
+    ...(body !== undefined && body !== null ? { 'Content-Type': 'application/json' } : {})
+  };
 
-  if (res.status === 401 && !_retried) {
-    await auth.refresh();
-    return request(method, path, body, { queueIfOffline: false, _retried: true });
+  try {
+    return await nativeRequest(method, url, headers, body ?? undefined);
+  } catch (e) {
+    if (e.status === 401 && !_retried) {
+      try {
+        await auth.refresh();
+        return request(method, path, body, { queueIfOffline: false, _retried: true });
+      } catch (refreshErr) {
+        throw new Error(refreshErr.message || 'Sitzung abgelaufen – bitte erneut anmelden.');
+      }
+    }
+    throw e;
   }
-
-  if (res.status === 204) return null;
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
-  if (!res.ok) {
-    const err = new Error(data?.detail || data?.title || `HTTP ${res.status}`);
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
-  return data;
 }
 
 export const api = {
@@ -84,18 +131,30 @@ export const api = {
 };
 
 export async function refreshCache() {
-  const [me, tenant, profile, customers, invoices, countries] = await Promise.all([
+  const results = await Promise.allSettled([
     api.me(),
     api.getTenant(),
     api.getProfile(),
     api.listCustomers(),
     api.listInvoices(),
-    api.countries().catch(() => ({ items: [] }))
+    api.countries()
   ]);
+
+  const [me, tenant, profile, customers, invoices, countries] = results.map((r) =>
+    r.status === 'fulfilled' ? r.value : null
+  );
+
+  const firstAuthError = results.find((r) =>
+    r.status === 'rejected' && (r.reason?.status === 401 || r.reason?.status === 403)
+  );
+  if (firstAuthError && !me && !tenant) {
+    throw firstAuthError.reason;
+  }
+
   const cache = {
-    me,
-    tenant,
-    profile,
+    me: me || null,
+    tenant: tenant || null,
+    profile: profile || null,
     customers: customers?.items || [],
     invoices: invoices?.items || [],
     countries: countries?.items || [],

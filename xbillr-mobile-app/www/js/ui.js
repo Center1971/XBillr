@@ -56,7 +56,11 @@ export const ui = {
   showLogin(error = '') {
     document.getElementById('login-screen').hidden = false;
     document.getElementById('app-shell').hidden = true;
-    document.getElementById('login-error').textContent = error;
+    let msg = error == null ? '' : String(error);
+    if (msg.includes('"url"') && msg.includes('openid-connect')) {
+      msg = 'Token-Austausch fehlgeschlagen. Bitte erneut anmelden.';
+    }
+    document.getElementById('login-error').textContent = msg;
   },
 
   showApp() {

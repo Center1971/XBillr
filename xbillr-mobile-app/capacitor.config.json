@@ -10,7 +10,8 @@
   },
   "plugins": {
     "StatusBar": { "style": "DARK" },
-    "Keyboard": { "resize": "body" }
+    "Keyboard": { "resize": "body" },
+    "CapacitorHttp": { "enabled": true }
   },
   "android": {
     "allowMixedContent": false,

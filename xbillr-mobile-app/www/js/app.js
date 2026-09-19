@@ -1,10 +1,11 @@
-import { StatusBar, Style } from './native.js';
-import { auth } from './auth.js';
+import { StatusBar, Style, App } from './native.js';
+import { auth, authErrorMessage } from './auth.js';
 import { api, initNetwork, isOnline, refreshCache, flushQueue } from './api.js';
 import { storage } from './storage.js';
 import { ui } from './ui.js';
 
 let cache = null;
+let appReady = false;
 
 async function ensureCache() {
   cache = await storage.getCache();
@@ -32,11 +33,11 @@ async function afterMutation() {
 }
 
 function renderInvoices() {
-  ui.renderInvoices(cache, { onOpen: openInvoice, onCreate: createInvoice });
+  ui.renderInvoices(cache || { invoices: [] }, { onOpen: openInvoice, onCreate: createInvoice });
 }
 
 function renderCustomers() {
-  ui.renderCustomers(cache, { onEdit: editCustomer });
+  ui.renderCustomers(cache || { customers: [] }, { onEdit: editCustomer });
 }
 
 function createInvoice() {
@@ -250,14 +251,37 @@ async function saveProfile(body) {
 }
 
 async function enterApp() {
+  console.log('[app] enterApp');
+  appReady = true;
   ui.showApp();
   await ensureCache();
-  if (isOnline()) await loadOnline();
-  ui.navigate('invoices');
   renderInvoices();
   renderCustomers();
-  ui.renderStammdaten(cache, { onSave: saveTenant });
-  ui.renderProfile(cache, { onSave: saveProfile });
+  ui.renderStammdaten(cache || {}, { onSave: saveTenant });
+  ui.renderProfile(cache || {}, { onSave: saveProfile });
+  ui.navigate('invoices');
+  // Daten danach laden – Fehler dürfen nicht zurück zum Login schicken
+  if (isOnline()) await loadOnline();
+  renderInvoices();
+  renderCustomers();
+  ui.renderStammdaten(cache || {}, { onSave: saveTenant });
+  ui.renderProfile(cache || {}, { onSave: saveProfile });
+}
+
+async function tryEnterFromSession(reason = '') {
+  if (!(await auth.isLoggedIn())) return false;
+  console.log('[app] session found', reason);
+  await enterApp();
+  return true;
+}
+
+async function handleOAuthSuccess() {
+  ui.toast('Angemeldet');
+  await enterApp();
+}
+
+async function handleOAuthError(e) {
+  ui.showLogin(authErrorMessage(e));
 }
 
 async function boot() {
@@ -268,20 +292,42 @@ async function boot() {
 
   await initNetwork(async (online) => {
     ui.setOffline(online);
-    if (online && await auth.isLoggedIn()) {
+    if (online && appReady && await auth.isLoggedIn()) {
       await loadOnline();
       renderInvoices();
       renderCustomers();
-      ui.renderStammdaten(cache, { onSave: saveTenant });
-      ui.renderProfile(cache, { onSave: saveProfile });
     }
   });
   ui.setOffline(isOnline());
 
-  auth.bindDeepLink(
-    async () => { ui.toast('Angemeldet'); await enterApp(); },
-    (e) => ui.showLogin(e.message || 'Login fehlgeschlagen')
-  );
+  auth.bindDeepLink(handleOAuthSuccess, handleOAuthError);
+
+  // Zurück aus Safari: Deep Link / Session nachziehen
+  App.addListener('appStateChange', async ({ isActive }) => {
+    if (!isActive) return;
+    console.log('[app] resumed');
+    try {
+      const launchUrl = await auth.consumeLaunchUrl();
+      if (launchUrl && await auth.handleRedirectUrl(launchUrl)) {
+        await handleOAuthSuccess();
+        return;
+      }
+    } catch (e) {
+      handleOAuthError(e);
+      return;
+    }
+    if (!appReady) await tryEnterFromSession('resume');
+  });
+
+  try {
+    const launchUrl = await auth.consumeLaunchUrl();
+    if (launchUrl && await auth.handleRedirectUrl(launchUrl)) {
+      await handleOAuthSuccess();
+      return;
+    }
+  } catch (e) {
+    handleOAuthError(e);
+  }
 
   document.getElementById('btn-login').onclick = async () => {
     const btn = document.getElementById('btn-login');
@@ -293,8 +339,8 @@ async function boot() {
       await auth.login();
       errEl.textContent = 'Bitte im Browser anmelden. Danach kehrst du automatisch zurück.';
     } catch (e) {
-      console.error('[login]', e?.message || e?.errorMessage || e?.code || e);
-      ui.showLogin((e && (e.message || e.errorMessage || e.code)) || 'Login konnte nicht geöffnet werden');
+      console.error('[login]', authErrorMessage(e));
+      ui.showLogin(authErrorMessage(e) || 'Login konnte nicht geöffnet werden');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Anmelden';
@@ -302,6 +348,7 @@ async function boot() {
   };
 
   document.getElementById('btn-logout').onclick = async () => {
+    appReady = false;
     await auth.logout();
     ui.showLogin();
   };
@@ -312,13 +359,13 @@ async function boot() {
       ui.navigate(page);
       if (page === 'invoices') renderInvoices();
       if (page === 'customers') renderCustomers();
-      if (page === 'stammdaten') ui.renderStammdaten(cache, { onSave: saveTenant });
-      if (page === 'profile') ui.renderProfile(cache, { onSave: saveProfile });
+      if (page === 'stammdaten') ui.renderStammdaten(cache || {}, { onSave: saveTenant });
+      if (page === 'profile') ui.renderProfile(cache || {}, { onSave: saveProfile });
     };
   });
 
-  if (await auth.isLoggedIn()) await enterApp();
-  else ui.showLogin();
+  if (await tryEnterFromSession('boot')) return;
+  ui.showLogin();
 }
 
 boot().catch((e) => {

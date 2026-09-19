@@ -18,11 +18,13 @@ function plugin(name) {
   return null;
 }
 
-function errMessage(e) {
+export function errMessage(e) {
   if (!e) return 'Unbekannter Fehler';
   if (typeof e === 'string') return e;
   return e.message || e.errorMessage || e.code || JSON.stringify(e) || String(e);
 }
+
+export { plugin };
 
 /** Öffnet https-URLs im System-/In-App-Browser (OAuth). */
 async function openExternal(url) {
@@ -90,6 +92,11 @@ export const App = {
     const A = plugin('App');
     if (A?.addListener) return A.addListener(event, cb);
     return { remove: () => {} };
+  },
+  async getState() {
+    const A = plugin('App');
+    if (A?.getState) return A.getState();
+    return { isActive: true };
   }
 };
 
@@ -125,5 +132,3 @@ export const StatusBar = {
 };
 
 export const Style = { Dark: 'DARK', Light: 'LIGHT' };
-
-export { errMessage };

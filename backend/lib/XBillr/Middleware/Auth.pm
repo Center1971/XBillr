@@ -97,12 +97,19 @@ sub register {
         my @clients = ();
         push @clients, $iam->{clients}{web}{client_id} if $iam->{clients}{web}{client_id};
         push @clients, $iam->{clients}{mobile}{client_id} if $iam->{clients}{mobile}{client_id};
-        push @clients, qw(XBillr XBillr-Mobile) unless @clients;
+        # Keycloak legt Client-Rollen oft unter azp ab
+        push @clients, $claims->{azp} if $claims->{azp};
+        push @clients, qw(XBillr XBillr-Mobile xbillr-web xbillr-mobile) unless @clients;
         my @roles;
         for my $client (@clients) {
+            next unless $client;
             my $client_access = $resource_access->{$client} || {};
             my $client_roles = $client_access->{roles};
             push @roles, @{$client_roles} if $client_roles && ref $client_roles eq 'ARRAY';
+        }
+        my $realm_roles = ($claims->{realm_access} || {})->{roles};
+        if ($realm_roles && ref $realm_roles eq 'ARRAY') {
+            push @roles, @{$realm_roles};
         }
         @roles = grep { $_ =~ /^XBillr-/ } @roles;
         my %seen = map { $_ => 1 } @roles;
@@ -120,19 +127,26 @@ sub register {
         my ($claims) = @_;
         my $iam = $iam_config->();
         my @allowed;
+        my @client_ids;
         if ($iam->{clients}{web} && $iam->{clients}{web}{audience}) {
             push @allowed, $iam->{clients}{web}{audience};
         }
         if ($iam->{clients}{mobile} && $iam->{clients}{mobile}{audience}) {
             push @allowed, $iam->{clients}{mobile}{audience};
         }
-        return 1 unless @allowed;
+        push @client_ids, $iam->{clients}{web}{client_id} if $iam->{clients}{web}{client_id};
+        push @client_ids, $iam->{clients}{mobile}{client_id} if $iam->{clients}{mobile}{client_id};
+        # Ohne konfigurierte Audience/Client-IDs: alles akzeptieren
+        return 1 unless @allowed || @client_ids;
+
         my $aud = $claims->{aud};
-        return 0 unless $aud;
-        my @aud_list = ref($aud) eq 'ARRAY' ? @{$aud} : ($aud);
+        my @aud_list = ref($aud) eq 'ARRAY' ? @{$aud} : (defined $aud ? ($aud) : ());
         for my $candidate (@aud_list) {
-            return 1 if grep { $_ eq $candidate } @allowed;
+            return 1 if grep { $_ eq $candidate } (@allowed, @client_ids);
         }
+        # Public Clients: oft aud=account, azp=<client_id>
+        my $azp = $claims->{azp} || '';
+        return 1 if $azp && grep { $_ eq $azp } (@allowed, @client_ids);
         return 0;
     };
 
