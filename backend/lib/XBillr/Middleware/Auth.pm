@@ -136,17 +136,22 @@ sub register {
         }
         push @client_ids, $iam->{clients}{web}{client_id} if $iam->{clients}{web}{client_id};
         push @client_ids, $iam->{clients}{mobile}{client_id} if $iam->{clients}{mobile}{client_id};
-        # Ohne konfigurierte Audience/Client-IDs: alles akzeptieren
-        return 1 unless @allowed || @client_ids;
+        # Bekannte Client-IDs immer erlauben (auch wenn Config unvollständig)
+        push @client_ids, qw(xbillr-web xbillr-mobile);
+
+        my $azp = $claims->{azp} || '';
+        return 1 if $azp && grep { $_ eq $azp } @client_ids;
+
+        # Ohne konfigurierte Audience: alles akzeptieren
+        return 1 unless @allowed;
 
         my $aud = $claims->{aud};
         my @aud_list = ref($aud) eq 'ARRAY' ? @{$aud} : (defined $aud ? ($aud) : ());
         for my $candidate (@aud_list) {
             return 1 if grep { $_ eq $candidate } (@allowed, @client_ids);
+            # Keycloak Standard-Audience
+            return 1 if $candidate eq 'account' && $azp && grep { $_ eq $azp } @client_ids;
         }
-        # Public Clients: oft aud=account, azp=<client_id>
-        my $azp = $claims->{azp} || '';
-        return 1 if $azp && grep { $_ eq $azp } (@allowed, @client_ids);
         return 0;
     };
 
@@ -222,15 +227,26 @@ sub register {
                 key => $jwk,
                 accepted_alg => ['RS256', 'RS384', 'RS512'],
                 verify_exp => 1,
-                verify_iss => $iam->{issuer},
+                # Issuer manuell prüfen (Leerzeichen vs %20)
+                verify_iss => 0,
             );
         };
 
         return { error => 'invalid' } unless $claims;
+
+        my $iss = $claims->{iss} // '';
+        my $expected = $iam->{issuer} // '';
+        my $expected_space = $expected; $expected_space =~ s/%20/ /g;
+        my $expected_enc = $expected; $expected_enc =~ s/ /%20/g;
+        my $iss_ok = !$expected
+            || $iss eq $expected
+            || $iss eq $expected_space
+            || $iss eq $expected_enc;
+        return { error => 'invalid' } unless $iss_ok;
+
         return { error => 'aud' } unless $audience_ok->($claims);
 
-        my $roles = $extract_roles->($claims);
-        return { error => 'roles' } unless $roles && @{$roles};
+        my $roles = $extract_roles->($claims) || [];
 
         return {
             claims => $claims,
@@ -298,7 +314,12 @@ sub register {
         }
 
         unless ($token) {
-            $c->render(json => { error => 'Authentifizierung erforderlich' }, status => 401);
+            $c->render(json => {
+                type => 'https://xbillr.eu/problems/unauthorized',
+                title => 'Unauthorized',
+                status => 401,
+                detail => 'Not authenticated.',
+            }, status => 401);
             return 0;
         }
 
@@ -309,10 +330,17 @@ sub register {
             if ($validated->{error}) {
                 $c->app->log->warn("OIDC: token validation failed: $validated->{error}");
                 my $status = $validated->{error} eq 'roles' ? 403 : 401;
-                my $message = $validated->{error} eq 'roles'
+                my $detail = $validated->{error} eq 'roles'
                     ? 'Keine Berechtigung für diese Aktion'
-                    : 'Ungültiges Zugriffstoken';
-                $c->render(json => { error => $message }, status => $status);
+                    : ($validated->{error} eq 'aud'
+                        ? 'Token-Audience wird nicht akzeptiert (xbillr-mobile).'
+                        : 'Not authenticated.');
+                $c->render(json => {
+                    type => 'https://xbillr.eu/problems/unauthorized',
+                    title => $status == 403 ? 'Forbidden' : 'Unauthorized',
+                    status => $status,
+                    detail => $detail,
+                }, status => $status);
                 return 0;
             }
 

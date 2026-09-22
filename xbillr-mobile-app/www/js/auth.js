@@ -274,6 +274,15 @@ export const auth = {
       expires_in: json.expires_in,
       expires_at: Date.now() + (Number(json.expires_in) || 300) * 1000
     });
+    try {
+      const payload = JSON.parse(atob(json.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      console.log('[auth] token claims', {
+        azp: payload.azp,
+        aud: payload.aud,
+        iss: payload.iss,
+        roles: payload.realm_access?.roles || payload.resource_access
+      });
+    } catch (_) { /* ignore */ }
   },
 
   async refresh() {

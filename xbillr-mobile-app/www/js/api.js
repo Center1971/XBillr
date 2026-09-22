@@ -27,46 +27,59 @@ function parseBody(data) {
 }
 
 function httpError(status, data) {
-  const msg = data?.detail || data?.title || data?.error || data?.error_description || `HTTP ${status}`;
+  let msg = data?.detail || data?.title || data?.error || data?.error_description || `HTTP ${status}`;
+  if (/not authenticated/i.test(String(msg))) {
+    msg = 'API lehnt das Mobile-Token ab (Not authenticated). Backend muss Bearer-Tokens von xbillr-mobile akzeptieren.';
+  }
   const err = new Error(msg);
   err.status = status;
   err.data = data;
   return err;
 }
 
-/** API-Request über CapacitorHttp (kein CORS, Headers zuverlässig) oder fetch. */
+/**
+ * Native HTTP: CapHttp.enabled patcht fetch → kein CORS, Headers bleiben erhalten.
+ * Explizites CapacitorHttp.request als Fallback.
+ */
 async function nativeRequest(method, url, headers, body) {
-  const Http = plugin('CapacitorHttp');
-  if (Http?.request) {
-    let res;
-    try {
-      res = await Http.request({
-        method,
-        url,
-        headers,
-        data: body !== undefined ? body : undefined,
-        dataType: body !== undefined ? 'json' : undefined
-      });
-    } catch (e) {
-      const status = e?.status ?? e?.statusCode ?? 0;
-      throw httpError(status, parseBody(e?.data));
-    }
-    const status = res?.status ?? res?.statusCode ?? 0;
-    if (status === 204) return null;
-    const data = parseBody(res?.data);
-    if (status < 200 || status >= 300) throw httpError(status, data);
+  const init = {
+    method,
+    headers: { ...headers },
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  };
+
+  // 1) Gepatchtes fetch (CapacitorHttp.enabled)
+  try {
+    const res = await fetch(url, init);
+    if (res.status === 204) return null;
+    const text = await res.text();
+    const data = parseBody(text);
+    if (!res.ok) throw httpError(res.status, data);
     return data;
+  } catch (e) {
+    if (e && e.status) throw e;
+    console.warn('[api] fetch failed, trying CapHttp plugin', e);
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined
-  });
-  if (res.status === 204) return null;
-  const text = await res.text();
-  const data = parseBody(text);
-  if (!res.ok) throw httpError(res.status, data);
+  const Http = plugin('CapacitorHttp');
+  if (!Http?.request) throw new Error('Netzwerkfehler');
+
+  let res;
+  try {
+    res = await Http.request({
+      method,
+      url,
+      headers,
+      data: body !== undefined ? body : undefined,
+      dataType: body !== undefined ? 'json' : undefined
+    });
+  } catch (err) {
+    throw httpError(err?.status ?? 0, parseBody(err?.data));
+  }
+  const status = res?.status ?? res?.statusCode ?? 0;
+  if (status === 204) return null;
+  const data = parseBody(res?.data);
+  if (status < 200 || status >= 300) throw httpError(status, data);
   return data;
 }
 
@@ -144,12 +157,9 @@ export async function refreshCache() {
     r.status === 'fulfilled' ? r.value : null
   );
 
-  const firstAuthError = results.find((r) =>
+  const authFail = results.find((r) =>
     r.status === 'rejected' && (r.reason?.status === 401 || r.reason?.status === 403)
   );
-  if (firstAuthError && !me && !tenant) {
-    throw firstAuthError.reason;
-  }
 
   const cache = {
     me: me || null,
@@ -161,6 +171,10 @@ export async function refreshCache() {
     updatedAt: Date.now()
   };
   await storage.setCache(cache);
+
+  if (authFail && !me && !tenant) {
+    throw authFail.reason;
+  }
   return cache;
 }
 
