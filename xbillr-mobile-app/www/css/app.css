@@ -170,6 +170,11 @@ a { color: var(--orange); }
   padding: 32px 24px;
   text-align: center;
 }
+/* display:flex überschreibt sonst das HTML-Attribut hidden */
+.login-screen[hidden],
+#app-shell[hidden] {
+  display: none !important;
+}
 .login-screen h1 { color: var(--yellow); }
 .toast {
   position: fixed;

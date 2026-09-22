@@ -84,6 +84,11 @@ export const Browser = {
     if (B?.close) {
       try { await B.close(); } catch (_) { /* ignore */ }
     }
+  },
+  addListener(event, cb) {
+    const B = plugin('Browser');
+    if (B?.addListener) return B.addListener(event, cb);
+    return { remove: () => {} };
   }
 };
 

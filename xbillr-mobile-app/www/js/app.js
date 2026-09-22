@@ -1,4 +1,4 @@
-import { StatusBar, Style, App } from './native.js';
+import { StatusBar, Style, App, Browser } from './native.js';
 import { auth, authErrorMessage } from './auth.js';
 import { api, initNetwork, isOnline, refreshCache, flushQueue } from './api.js';
 import { storage } from './storage.js';
@@ -6,6 +6,32 @@ import { ui } from './ui.js';
 
 let cache = null;
 let appReady = false;
+let loginWatchTimer = null;
+
+function stopLoginWatch() {
+  if (loginWatchTimer) {
+    clearInterval(loginWatchTimer);
+    loginWatchTimer = null;
+  }
+}
+
+function startLoginWatch() {
+  stopLoginWatch();
+  let ticks = 0;
+  loginWatchTimer = setInterval(async () => {
+    ticks += 1;
+    if (ticks > 90) { // ~90s
+      stopLoginWatch();
+      return;
+    }
+    try {
+      if (await auth.isLoggedIn()) {
+        stopLoginWatch();
+        await handleOAuthSuccess();
+      }
+    } catch (_) { /* ignore */ }
+  }, 1000);
+}
 
 async function ensureCache() {
   cache = await storage.getCache();
@@ -276,6 +302,11 @@ async function tryEnterFromSession(reason = '') {
 }
 
 async function handleOAuthSuccess() {
+  stopLoginWatch();
+  if (appReady) {
+    ui.showApp();
+    return;
+  }
   ui.toast('Angemeldet');
   await enterApp();
 }
@@ -302,6 +333,13 @@ async function boot() {
 
   auth.bindDeepLink(handleOAuthSuccess, handleOAuthError);
 
+  // Safari/In-App-Browser geschlossen → Session prüfen
+  Browser.addListener('browserFinished', async () => {
+    console.log('[app] browserFinished');
+    if (await auth.isLoggedIn()) await handleOAuthSuccess();
+    else if (!appReady) startLoginWatch();
+  });
+
   // Zurück aus Safari: Deep Link / Session nachziehen
   App.addListener('appStateChange', async ({ isActive }) => {
     if (!isActive) return;
@@ -313,10 +351,15 @@ async function boot() {
         return;
       }
     } catch (e) {
+      // Token evtl. trotzdem schon da
+      if (await auth.isLoggedIn()) {
+        await handleOAuthSuccess();
+        return;
+      }
       handleOAuthError(e);
       return;
     }
-    if (!appReady) await tryEnterFromSession('resume');
+    if (!appReady && await auth.isLoggedIn()) await handleOAuthSuccess();
   });
 
   try {
@@ -326,7 +369,11 @@ async function boot() {
       return;
     }
   } catch (e) {
-    handleOAuthError(e);
+    if (!(await auth.isLoggedIn())) handleOAuthError(e);
+    else {
+      await handleOAuthSuccess();
+      return;
+    }
   }
 
   document.getElementById('btn-login').onclick = async () => {
@@ -338,6 +385,7 @@ async function boot() {
       btn.textContent = 'Öffne Login …';
       await auth.login();
       errEl.textContent = 'Bitte im Browser anmelden. Danach kehrst du automatisch zurück.';
+      startLoginWatch();
     } catch (e) {
       console.error('[login]', authErrorMessage(e));
       ui.showLogin(authErrorMessage(e) || 'Login konnte nicht geöffnet werden');
@@ -349,6 +397,7 @@ async function boot() {
 
   document.getElementById('btn-logout').onclick = async () => {
     appReady = false;
+    stopLoginWatch();
     await auth.logout();
     ui.showLogin();
   };
